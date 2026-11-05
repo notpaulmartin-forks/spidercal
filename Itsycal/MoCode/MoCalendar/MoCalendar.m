@@ -719,7 +719,9 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     NSString *title = [NSString stringWithFormat:@"%@ %zd", months[self.monthDate.month], self.monthDate.year];
 #ifdef DEBUG
     // Mark debug builds so they're easy to tell apart from release builds.
-    title = [title stringByAppendingString:@" ✱"];
+    if (!NSProcessInfo.processInfo.environment[@"SPIDERCAL_SNAPSHOT"]) {
+        title = [title stringByAppendingString:@" ✱"];
+    }
 #endif
     return title;
 }

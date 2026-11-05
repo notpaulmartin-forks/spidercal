@@ -63,8 +63,13 @@
     }];
     
     // Constrain kShowEventDays to values 0...9 in (unlikely) case it is invalid.
-    NSInteger validDays = MIN(MAX([defaults integerForKey:kShowEventDays], 0), 9);
-    [defaults setInteger:validDays forKey:kShowEventDays];
+    // Only write if invalid: a value passed as a launch argument
+    // must not end up saved as the user's setting.
+    NSInteger showEventDays = [defaults integerForKey:kShowEventDays];
+    NSInteger validDays = MIN(MAX(showEventDays, 0), 9);
+    if (validDays != showEventDays) {
+        [defaults setInteger:validDays forKey:kShowEventDays];
+    }
     
     // Set kThemePreference to system in the unlikely case it's invalid.
     NSInteger themePref = [defaults integerForKey:kThemePreference];
@@ -220,13 +225,16 @@
             }
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 NSView *contentView = window.contentView;
-                // Render the layers, as the window shows them.
+                // The pin only kept the window open for the snapshot.
+                ((NSButton *)[self->_vc valueForKey:@"_btnPin"]).state = NSControlStateValueOff;
+                if (env[@"SPIDERCAL_NOFOCUS"]) [window makeFirstResponder:nil];
+                [contentView displayIfNeeded];
+                // Render the layers, as the window shows them, on a
+                // transparent background to keep the window's shape.
                 CGFloat scale = window.backingScaleFactor;
                 NSSize size = contentView.bounds.size;
                 NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:size.width * scale pixelsHigh:size.height * scale bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
                 CGContextRef context = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep].CGContext;
-                CGContextSetFillColorWithColor(context, NSColor.windowBackgroundColor.CGColor);
-                CGContextFillRect(context, CGRectMake(0, 0, size.width * scale, size.height * scale));
                 CGContextScaleCTM(context, scale, scale);
                 [contentView.layer renderInContext:context];
                 [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:path atomically:YES];

@@ -621,7 +621,7 @@ static const CGFloat kSwapDuration = 0.18;
     if (tz) formatter.timeZone = tz;
     NSString *when = (start && end) ? [formatter stringFromDate:start toDate:end] : @"";
     if (tz) {
-        when = [NSString stringWithFormat:@"%@ %@", when, [tz abbreviationForDate:start]];
+        when = [NSString stringWithFormat:@"%@ %@", when, ShortTimeZoneName(tz, start)];
     }
     _sumDate.stringValue = when ?: @"";
     _sumDate.toolTip = when;

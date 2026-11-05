@@ -8,6 +8,25 @@
 @implementation NLEventDraft
 @end
 
+NSString *ShortTimeZoneName(NSTimeZone *timeZone, NSDate *date)
+{
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    formatter.dateFormat = @"z";
+    formatter.timeZone = timeZone;
+    NSArray<NSLocale *> *locales = @[NSLocale.currentLocale,
+                                     [NSLocale localeWithLocaleIdentifier:@"en_US"],
+                                     [NSLocale localeWithLocaleIdentifier:@"en_GB"],
+                                     [NSLocale localeWithLocaleIdentifier:@"en_AU"],
+                                     [NSLocale localeWithLocaleIdentifier:@"en_IN"],
+                                     [NSLocale localeWithLocaleIdentifier:@"ja_JP"]];
+    for (NSLocale *locale in locales) {
+        formatter.locale = locale;
+        NSString *name = [formatter stringFromDate:date];
+        if (name.length && ![name hasPrefix:@"GMT"] && ![name hasPrefix:@"UTC"]) return name;
+    }
+    return [timeZone abbreviationForDate:date];
+}
+
 // Country code -> the time zone most people there mean.
 static NSDictionary<NSString *, NSString *> *CountryZones(void)
 {
@@ -68,7 +87,7 @@ static NSDictionary<NSString *, NSString *> *NamedZones(void)
 }
 
 // Lowercase words -> time zone name, for "<word> time": the people
-// of a country ("german time") and names for zones ("pacific time").
+// of a country ("japanese time") and names for zones ("pacific time").
 static NSDictionary<NSString *, NSString *> *AdjectiveZones(void)
 {
     static NSDictionary *zones;
@@ -168,7 +187,7 @@ static NSRegularExpression *Regex(NSString *pattern)
     };
     NSRange whole = NSMakeRange(0, text.length);
 
-    // ---- Time zone: "<name> time" (DE time, Berlin time, New York time)
+    // ---- Time zone: "<name> time" (NY time, Tokyo time, japanese time)
     NSTimeZone *timeZone = nil;
     for (NSTextCheckingResult *m in [Regex(@"\\btime\\b") matchesInString:mask options:0 range:whole]) {
         // Try the 3, 2 and 1 words before "time".

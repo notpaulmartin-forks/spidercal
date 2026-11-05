@@ -910,7 +910,7 @@ const NSTimeInterval kAlertRegularRelativeOffsets[kAlertRegularNumOffsets] = {
 static NSString *TimeZoneTitle(NSTimeZone *tz)
 {
     NSString *city = [[tz.name lastPathComponent] stringByReplacingOccurrencesOfString:@"_" withString:@" "];
-    NSString *abbreviation = [tz abbreviationForDate:[NSDate new]];
+    NSString *abbreviation = ShortTimeZoneName(tz, [NSDate new]);
     return abbreviation.length ? [NSString stringWithFormat:@"%@ (%@)", city, abbreviation] : city;
 }
 
@@ -970,7 +970,7 @@ static NSMenuItem *TimeZoneMenuItem(NSTimeZone *tz)
     NSTimeZone *newTZ = _tzPopup.selectedItem.representedObject;
     if (!newTZ) return;
     // Keep the clock time the pickers show, as Calendar does:
-    // 4 PM in Berlin becomes 4 PM in Tokyo.
+    // 4 PM in New York becomes 4 PM in Tokyo.
     NSTimeZone *oldTZ = _timeZone ?: [NSTimeZone localTimeZone];
     NSCalendar *oldCal = [self.cal copy] ?: [NSCalendar currentCalendar];
     NSCalendar *newCal = [oldCal copy];

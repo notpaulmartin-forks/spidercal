@@ -2,8 +2,21 @@
 
 Forked from [Itsycal](https://github.com/sfsam/Itsycal)
 
-- Type events in natural language, e.g. `Flight to London on 12 Nov at 4pm, DE time`. Understood dates, times, time zones and places are tinted, and a summary appears under the field. Press Return to save.
-- Time zones in new events: `DE time`, `german time`, `germany time`, `CET`, `Tokyo time` and so on, plus a Time Zone row in the event form.
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/overview.png" alt="The calendar and a scrolling agenda, with the New Event and Search fields above them" width="260"><br>Calendar and agenda</td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/quick-add.png" alt="An event typed in natural language, with the understood parts tinted and a summary below" width="260"><br>Type an event in plain language</td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/places.png" alt="Place suggestions floating over the window while typing a location" width="260"><br>Place suggestions as you type</td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="docs/screenshots/details.png" alt="The full event form open inside the window" width="260"><br>Full details, inline</td>
+    <td align="center" valign="top"><img src="docs/screenshots/search.png" alt="Search results replacing the agenda" width="260"><br>Search your events</td>
+    <td align="center" valign="top"><img src="docs/screenshots/dark.png" alt="The same window in dark mode" width="260"><br>Dark mode</td>
+  </tr>
+</table>
+
+- Type events in natural language, e.g. `Call Tokyo on 12 Nov at 4pm, New York time`. Understood dates, times, time zones and places are tinted, and a summary appears under the field. Press Return to save.
+- Time zones in new events: `New York time`, `Tokyo time`, `japanese time`, `uk time`, `PST` and so on, plus a Time Zone row in the event form.
 - Place suggestions while typing `at <place>` or filling in the location field. They use Apple's MapKit, so the place text you type is sent to Apple. Nothing is sent until you type a place.
 - Search events by title, location or notes across the next 12 months. The New Event and Search fields swap places with a click, or with ⌘N and ⌘F.
 - The full event form opens inline in the window instead of in a popover.

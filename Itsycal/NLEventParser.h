@@ -3,11 +3,16 @@
 //  Spidercal
 //
 //  Turns a line of natural language, e.g.
-//  "Flight to London on 12 Nov at 4pm, DE time",
+//  "Flight to Tokyo on 12 Nov at 4pm, New York time",
 //  into the details of a new event.
 //
 
 #import <Foundation/Foundation.h>
+
+// A time zone's short name on date, like "EST" or "CET". macOS only
+// has these in some regions (and says "GMT-5" elsewhere), so this looks
+// beyond the user's region before settling for an offset.
+NSString *ShortTimeZoneName(NSTimeZone *timeZone, NSDate *date);
 
 @interface NLEventDraft : NSObject
 // What is left of the text once dates, times, time zones and the
@@ -33,7 +38,7 @@
                calendar:(NSCalendar *)calendar
                     now:(NSDate *)now
  defaultDurationMinutes:(NSInteger)defaultDurationMinutes;
-// The time zone a word or phrase names ("DE", "CET", "Berlin",
-// "Germany"), or nil.
+// The time zone a word or phrase names ("JP", "PST", "Tokyo",
+// "Japan"), or nil.
 + (NSTimeZone *)timeZoneForName:(NSString *)name;
 @end

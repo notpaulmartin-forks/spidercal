@@ -6,7 +6,7 @@
 //  them wide and the other collapsed to a button:
 //
 //   - New Event: type an event in natural language ("Flight to
-//     London on 12 Nov at 4pm, DE time"). What was understood is
+//     Tokyo on 12 Nov at 4pm, New York time"). What was understood is
 //     summarised underneath, with the full form one click away.
 //   - Search: find events by title, location or notes. The
 //     matches replace the agenda.

@@ -182,14 +182,14 @@ static BOOL FixtureEnabled(void) {
     // in minutes (all-day: in days), calendar, title, location.
     NSArray *specs = @[
         @[@0,  @10, @0,  @60,  @"Work",   @"Design review", @""],
-        @[@0,  @12, @30, @60,  @"Home",   @"Lunch with Anna", @"Café Einstein Stammhaus, Kurfürstenstraße 58, Berlin"],
+        @[@0,  @12, @30, @60,  @"Home",   @"Lunch with Alex", @"The Corner Café"],
         @[@0,  @16, @0,  @45,  @"Work",   @"Sync with the platform team", @"https://zoom.us/j/1234567890"],
-        @[@1,  @9,  @15, @45,  @"Health", @"Dentist", @"Praxis Dr. Weber"],
+        @[@1,  @9,  @15, @45,  @"Health", @"Dentist", @"Bright Smile Dental"],
         @[@1,  @-1, @0,  @1,   @"Home",   @"Mum's birthday", @""],
-        @[@2,  @-1, @0,  @3,   @"Home",   @"Weekend away in the Harz mountains with the whole family", @""],
+        @[@2,  @-1, @0,  @3,   @"Home",   @"Weekend away at the lake with the whole family", @""],
         @[@4,  @10, @0,  @90,  @"Work",   @"Sprint planning", @""],
         @[@4,  @18, @0,  @60,  @"Clubs & Societies", @"Gym", @""],
-        @[@8,  @19, @30, @150, @"Home",   @"Dinner at Lina's", @""],
+        @[@8,  @19, @30, @150, @"Home",   @"Dinner at Maya's", @""],
         @[@11, @9,  @0,  @30,  @"Health", @"Call dentist about invoice", @""],
         @[@13, @14, @0,  @60,  @"Work",   @"Quarterly review", @"Room 4.12"],
         @[@19, @19, @0,  @90,  @"Clubs & Societies", @"Book club", @""],
