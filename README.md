@@ -4,14 +4,14 @@ Forked from [Itsycal](https://github.com/sfsam/Itsycal)
 
 <table>
   <tr>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/overview.png" alt="The calendar and a scrolling agenda, with the New Event and Search fields above them" width="260"><br>Calendar and agenda</td>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/quick-add.png" alt="An event typed in natural language, with the understood parts tinted and a summary below" width="260"><br>Type an event in plain language</td>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/places.png" alt="Place suggestions floating over the window while typing a location" width="260"><br>Place suggestions as you type</td>
+    <td align="center" valign="top" width="33%"><b>Calendar and agenda</b><br><img src="docs/screenshots/overview.png" alt="The calendar and a scrolling agenda, with the New Event and Search fields above them" width="260"></td>
+    <td align="center" valign="top" width="33%"><b>Type an event in plain language</b><br><img src="docs/screenshots/quick-add.png" alt="An event typed in natural language, with the understood parts tinted and a summary below" width="260"></td>
+    <td align="center" valign="top" width="33%"><b>Place suggestions as you type</b><br><img src="docs/screenshots/places.png" alt="Place suggestions floating over the window while typing a location" width="260"></td>
   </tr>
   <tr>
-    <td align="center" valign="top"><img src="docs/screenshots/details.png" alt="The full event form open inside the window" width="260"><br>Full details, inline</td>
-    <td align="center" valign="top"><img src="docs/screenshots/search.png" alt="Search results replacing the agenda" width="260"><br>Search your events</td>
-    <td align="center" valign="top"><img src="docs/screenshots/dark.png" alt="The same window in dark mode" width="260"><br>Dark mode</td>
+    <td align="center" valign="top"><b>Full details, inline</b><br><img src="docs/screenshots/details.png" alt="The full event form open inside the window" width="260"></td>
+    <td align="center" valign="top"><b>Search your events</b><br><img src="docs/screenshots/search.png" alt="Search results replacing the agenda" width="260"></td>
+    <td align="center" valign="top"><b>Dark mode</b><br><img src="docs/screenshots/dark.png" alt="The same window in dark mode" width="260"></td>
   </tr>
 </table>
 
