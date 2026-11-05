@@ -330,7 +330,7 @@ static const CGFloat kWindowBottomMargin = 8;
 {
     _quickVC.eventUndoManager = self.itsycalWindow.undoManager;
     if ([[NSUserDefaults standardUserDefaults] boolForKey:kFocusNewEventOnOpen] && !_quickVC.isSearching) {
-        [_quickVC focusEntry];
+        [_quickVC focusEntryWithoutCaret];
     }
     else {
         [self.itsycalWindow makeFirstResponder:_moCal];

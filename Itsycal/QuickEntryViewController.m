@@ -73,9 +73,42 @@ static const CGFloat kSwapDuration = 0.18;
 @property (nonatomic, copy) NSString *placeholder;
 // Called with an arrow key pressed while the field is empty.
 @property (nonatomic, copy) void (^onNavigationKey)(NSEvent *event);
+// Ready for typing, without a cursor flashing at the user every
+// time the window opens. Typing or clicking shows it.
+@property (nonatomic) BOOL caretHidden;
 @end
 
 @implementation QETextView
+{
+    NSColor *_visibleCaretColor;
+}
+
+- (void)setCaretHidden:(BOOL)caretHidden
+{
+    if (_caretHidden == caretHidden) return;
+    _caretHidden = caretHidden;
+    if (caretHidden) {
+        _visibleCaretColor = self.insertionPointColor;
+        self.insertionPointColor = NSColor.clearColor;
+    }
+    else {
+        self.insertionPointColor = _visibleCaretColor ?: NSColor.textInsertionPointColor;
+    }
+    [self updateInsertionPointStateAndRestartTimer:YES];
+}
+
+- (void)mouseDown:(NSEvent *)event
+{
+    self.caretHidden = NO;
+    [super mouseDown:event];
+}
+
+- (void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange
+{
+    // Composing text with an input method.
+    self.caretHidden = NO;
+    [super setMarkedText:string selectedRange:selectedRange replacementRange:replacementRange];
+}
 
 - (BOOL)becomeFirstResponder
 {
@@ -130,6 +163,7 @@ static const CGFloat kSwapDuration = 0.18;
         [self.nextResponder keyDown:event];
         return;
     }
+    self.caretHidden = NO;
     [super keyDown:event];
 }
 
@@ -492,9 +526,20 @@ static const CGFloat kSwapDuration = 0.18;
 
 #pragma mark Switching between New Event and Search
 
+- (void)focusEntryWithoutCaret
+{
+    if (_searching) return;
+    // A draft in progress is something to come back to, so it keeps
+    // its cursor.
+    _entry.caretHidden = _entry.string.length == 0;
+    _eventVC.eventUndoManager = self.eventUndoManager ?: self.view.window.undoManager;
+    [self.view.window makeFirstResponder:_entry];
+}
+
 - (void)focusEntry
 {
     if (_searching) [self setSearching:NO];
+    _entry.caretHidden = NO;
     _eventVC.eventUndoManager = self.eventUndoManager ?: self.view.window.undoManager;
     [self.view.window makeFirstResponder:_entry];
 }
@@ -663,6 +708,7 @@ static const CGFloat kSwapDuration = 0.18;
 
 - (void)entryTextChanged
 {
+    _entry.caretHidden = NO; // also covers pasting
     [self updateEntryHeight];
     NSString *text = _entry.string ?: @"";
     NSString *trimmed = [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];

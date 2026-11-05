@@ -178,6 +178,10 @@
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             NSWindow *window = self->_wc.window;
             id quick = [self->_vc valueForKey:@"_quickVC"];
+            if (env[@"SPIDERCAL_TYPE_AS_OPENED"]) {
+                // Type straight away, as the user does on opening.
+                [(NSTextView *)window.firstResponder insertText:env[@"SPIDERCAL_TYPE_AS_OPENED"] replacementRange:NSMakeRange(NSNotFound, 0)];
+            }
             if (env[@"SPIDERCAL_SEARCH"]) {
                 [quick performSelector:@selector(focusSearch)];
                 [(NSText *)[window fieldEditor:YES forObject:nil] insertText:env[@"SPIDERCAL_SEARCH"]];
@@ -238,7 +242,9 @@
                 CGContextScaleCTM(context, scale, scale);
                 [contentView.layer renderInContext:context];
                 [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:path atomically:YES];
-                NSLog(@"snapshot %@ window=%@ firstResponder=%@", path, NSStringFromRect(window.frame), window.firstResponder.className);
+                NSLog(@"snapshot %@ window=%@ firstResponder=%@ caretHidden=%@ text=[%@]", path, NSStringFromRect(window.frame), window.firstResponder.className,
+                      [window.firstResponder respondsToSelector:@selector(caretHidden)] ? [(id)window.firstResponder valueForKey:@"caretHidden"] : @"n/a",
+                      [window.firstResponder isKindOfClass:[NSTextView class]] ? ((NSTextView *)window.firstResponder).string : @"");
                 exit(0);
             });
         });

@@ -29,6 +29,9 @@
 // Put the cursor in the New Event field / the Search field,
 // switching to it if the other one is showing.
 - (void)focusEntry;
+// The same, for when the window opens: ready for typing, with no
+// cursor until the user starts.
+- (void)focusEntryWithoutCaret;
 - (void)focusSearch;
 
 // Close any place suggestions, e.g. because the window is hiding.
