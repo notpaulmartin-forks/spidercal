@@ -19,6 +19,10 @@ cp Local.xcconfig.example Local.xcconfig
 4. Export notarized app to the Desktop.
 
 
+### Spidercal release DMG
+
+`./make_dmg.sh` builds a universal app, signed for local use only and not notarized, and packages it as `build/Spidercal.dmg`. Attach that to a GitHub release.
+
 ### Resources
 
 [Notarizing Your App Before Distribution](https://developer.apple.com/documentation/security/notarizing_your_app_before_distribution?language=objc)

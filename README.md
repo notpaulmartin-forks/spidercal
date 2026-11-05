@@ -22,11 +22,21 @@ Forked from [Itsycal](https://github.com/sfsam/Itsycal)
 - The full event form opens inline in the window instead of in a popover.
 - The agenda is a scrolling list. Drag the window's bottom edge to make it taller or shorter, and double-click the edge to reset it.
 - Slightly wider calendar, and spacing and type sizes that follow the size setting throughout.
-- Removed the Sparkle auto-updater, which checked Itsycal's update feed. To update, rebuild from source.
+- Removed the Sparkle auto-updater, which checked Itsycal's update feed. To update, download the latest release or rebuild from source.
 
 **Install instructions**
 
-Requires macOS 26 and Xcode 26 or newer. There are no prebuilt downloads, so build it yourself:
+[Download Spidercal.dmg](https://github.com/notpaulmartin-forks/spidercal/releases/latest/download/Spidercal.dmg) (macOS 26 or newer, Apple silicon and Intel), open it and drag Spidercal to Applications.
+
+This build isn't notarized by Apple, so macOS blocks it the first time you open it. Try to open it once, then go to System Settings → Privacy & Security and click Open Anyway. Or run this in Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Spidercal.app
+```
+
+Allow calendar access when asked, then tick the calendars you want under Settings → Events. Nothing shows until you do.
+
+To build it yourself instead, you need Xcode 26 or newer:
 
 ```bash
 git clone https://github.com/notpaulmartin-forks/spidercal.git
@@ -36,8 +46,6 @@ xcodebuild -project Itsycal.xcodeproj -scheme Itsycal -configuration Release -de
 ditto build/Build/Products/Release/Spidercal.app /Applications/Spidercal.app
 open /Applications/Spidercal.app
 ```
-
-Allow calendar access when asked, then tick the calendars you want under Settings → Events. Nothing shows until you do.
 
 The Xcode project and source folder are still named Itsycal, to keep merging from upstream simple. The Help links still point to Itsycal's site.
 
