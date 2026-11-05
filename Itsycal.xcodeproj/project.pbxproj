@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 110;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -44,12 +44,10 @@
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			attributesByRelativePath = {
 				Frameworks/MASShortcut.framework = (CodeSignOnCopy, RemoveHeadersOnCopy, );
-				Frameworks/Sparkle.framework = (CodeSignOnCopy, RemoveHeadersOnCopy, );
 			};
 			buildPhase = 9252DF361AFD3557007B079F /* CopyFiles */;
 			membershipExceptions = (
 				Frameworks/MASShortcut.framework,
-				Frameworks/Sparkle.framework,
 			);
 		};
 		92488FE93072079E00E9229D /* Exceptions for "Itsycal" folder in "Copy Files" phase from "Itsycal" target */ = {
@@ -112,7 +110,6 @@
 				9242A55A1A82A136005AA4B3 /* Resources */,
 				9252DF361AFD3557007B079F /* CopyFiles */,
 				9291F8AB2AE2126B00E80F14 /* CopyFiles */,
-				921949F4225D287F00223258 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -159,7 +156,7 @@
 				"zh-Hans",
 			);
 			mainGroup = 9242A5531A82A136005AA4B3;
-			preferredProjectObjectVersion = 110;
+			preferredProjectObjectVersion = 77;
 			productRefGroup = 9242A55D1A82A136005AA4B3 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -178,21 +175,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		921949F4225D287F00223258 /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			runOnlyForDeploymentPostprocessing = 1;
-			shellPath = /bin/sh;
-			shellScript = (
-				"# For notarization we need to deep codesign Sparkle.",
-				"# github.com/sparkle-project/Sparkle/issues/1266#issuecomment-421182578",
-				"LOCATION=\"${BUILT_PRODUCTS_DIR}\"/\"${FRAMEWORKS_FOLDER_PATH}\"",
-				"IDENTITY=\"${CODE_SIGN_IDENTITY}\"",
-				"codesign --verbose --force --deep -o runtime --sign \"$IDENTITY\" \"$LOCATION/Sparkle.framework/Versions/A/Resources/AutoUpdate.app\"",
-				"codesign --verbose --force -o runtime --sign \"$IDENTITY\" \"$LOCATION/Sparkle.framework/Versions/A\"",
-				"",
-			);
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -256,7 +238,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -309,7 +291,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
@@ -336,8 +318,8 @@
 				);
 				MARKETING_VERSION = 0.28.0;
 				OTHER_LDFLAGS = "-Wl,-rpath,@loader_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.mowglii.$(PRODUCT_NAME:rfc1034identifier)App";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.notpaulmartin.Spidercal.debug;
+				PRODUCT_NAME = Spidercal;
 			};
 			name = Debug;
 		};
@@ -362,8 +344,8 @@
 				);
 				MARKETING_VERSION = 0.28.0;
 				OTHER_LDFLAGS = "-Wl,-rpath,@loader_path/../Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.mowglii.$(PRODUCT_NAME:rfc1034identifier)App";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.notpaulmartin.Spidercal;
+				PRODUCT_NAME = Spidercal;
 			};
 			name = Release;
 		};

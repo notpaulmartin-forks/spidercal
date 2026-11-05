@@ -84,6 +84,12 @@
 // the list of selected calendars.
 - (void)updateSelectedCalendarsForIdentifier:(NSString *)identifier selected:(BOOL)selected;
 
+// Spidercal: search. Find events from today on (a year ahead) in the
+// user's selected calendars whose title, location or notes contain
+// query. Calls completion on the main thread with rows for the
+// agenda: an NSDate (day heading) followed by that day's EventInfos.
+- (void)searchEventsMatching:(NSString *)query completion:(void (^)(NSArray *datesAndEvents))completion;
+
 // Clear cached events and refetch.
 - (void)refetchAll;
 

@@ -48,7 +48,10 @@ Sizer *SizePref = nil;
 }
 
 - (CGFloat)cellSize {
-    return SML_MED_LRG(23, 28, 32);
+    // Spidercal: a little roomier than Itsycal's 23, 28, 32. The new
+    // event form and place suggestions need the width. (Window width
+    // is 7 cells + 16.)
+    return SML_MED_LRG(27, 30, 34);
 }
 
 - (CGFloat)cellTextFieldVerticalSpace {

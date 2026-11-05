@@ -103,7 +103,7 @@
     NSArray<NSString *> *iconNames = @[NSLocalizedString(@"Filled date", @"Accessibility description for menu bar icon with the date in a filled square"),
                                        NSLocalizedString(@"Outlined date", @"Accessibility description for menu bar icon with the date in an outlined square"),
                                        NSLocalizedString(@"Calendar grid", @"Accessibility description for menu bar icon showing a grid of days"),
-                                       NSLocalizedString(@"Itsycal face", @"Accessibility description for menu bar icon showing the Itsycal face")];
+                                       NSLocalizedString(@"Spidercal face", @"Accessibility description for menu bar icon showing the Itsycal face")];
     NSMutableArray<NSImage *> *iconImages = [NSMutableArray new];
     for (NSInteger i = 0; i < iconNames.count; i++) {
         NSImage *image = [[NSImage imageNamed:[NSString stringWithFormat:@"menubaricon%ld", i]] copy];

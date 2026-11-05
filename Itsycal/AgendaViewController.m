@@ -70,6 +70,9 @@ static const CGFloat kReminderFillGap = 1;
 // AgendaViewController
 // =========================================================================
 
+// Between the agenda's last row and the window's bottom edge.
+static const CGFloat kAgendaBottomInset = 6;
+
 @implementation AgendaViewController
 {
     NSPopover *_popover;
@@ -106,6 +109,12 @@ static const CGFloat kReminderFillGap = 1;
     tvContainer.drawsBackground = NO;
     tvContainer.hasVerticalScroller = NO; // see -viewDidLayout
     tvContainer.documentView = _tv;
+    if ([self.identifier isEqualToString:@"AgendaVC"]) {
+        // The list runs to the window's bottom edge while scrolling,
+        // and its last row stops a little short of it.
+        tvContainer.automaticallyAdjustsContentInsets = NO;
+        tvContainer.contentInsets = NSEdgeInsetsMake(0, 0, kAgendaBottomInset, 0);
+    }
     
     [v addSubview:tvContainer];
     [v addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[tv]|" options:0 metrics:nil views:@{@"tv": tvContainer}]];
@@ -130,6 +139,7 @@ static const CGFloat kReminderFillGap = 1;
         height += [self tableView:_tv heightOfRow:row];
     }
     if ([self.identifier isEqualToString:@"AgendaVC"]) {
+        if (rows > 0) height += kAgendaBottomInset;
         // Limit height so everything fits on the screen.
         CGFloat maxHeight = [self.delegate agendaMaxPossibleHeight];
         // Show the scroller only when the agenda scrolls, i.e. when it's
@@ -255,9 +265,12 @@ static const CGFloat kReminderFillGap = 1;
         item.representedObject = info;
     }
     // Never show menu item images, whatever the system configuration.
+    // (API needs the macOS 27 SDK; skipped when building with an older Xcode.)
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
     for (NSMenuItem *menuItem in menu.itemArray) {
         menuItem.preferredImageVisibility = NSMenuItemImageVisibilityHidden;
     }
+#endif
 }
 
 #pragma mark -

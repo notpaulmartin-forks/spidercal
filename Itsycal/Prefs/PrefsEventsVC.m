@@ -227,7 +227,7 @@ static NSString * const kButtonCellId = @"ButtonCell";
 
 - (NSString *)calendarsDeniedMessage
 {
-    return NSLocalizedString(@"Calendar access denied.\n\nItsycal is more useful when it can display events from your calendars. You can change this setting in System Settings › Privacy & Security › Calendars", @"");
+    return NSLocalizedString(@"Calendar access denied.\n\nSpidercal is more useful when it can display events from your calendars. You can change this setting in System Settings › Privacy & Security › Calendars", @"");
 }
 
 - (NSString *)remindersDeniedMessage

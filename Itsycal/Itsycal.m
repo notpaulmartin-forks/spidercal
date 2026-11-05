@@ -10,6 +10,7 @@
 
 // NSUserDefaults keys
 NSString * const kPinItsycal = @"PinItsycal";
+NSString * const kAgendaHeight = @"AgendaHeight";
 NSString * const kShowEventDays = @"ShowEventDays";
 NSString * const kShowWeeks = @"ShowWeeks";
 NSString * const kWeekStartDOW = @"WeekStartDOW";

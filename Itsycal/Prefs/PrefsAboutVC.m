@@ -35,7 +35,7 @@
     };
 
     NSDictionary *infoDict = [[NSBundle mainBundle] infoDictionary];
-    NSTextField *appName = label(@"Itsycal", NO);
+    NSTextField *appName = label(@"Spidercal", NO);
     appName.font = [NSFont systemFontOfSize:16 weight:NSFontWeightBold];
 
     NSTextField *version = label([NSString stringWithFormat:@"%@ (%@)", infoDict[@"CFBundleShortVersionString"], infoDict[@"CFBundleVersion"]], NO);

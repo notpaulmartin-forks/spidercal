@@ -26,7 +26,7 @@
 "15 minutes before" = "15 minutes avant";
 "30 minutes before" = "30 minutes avant";
 "31 days" = "31 jours";
-"About Itsycal" = "À propos de Itsycal";
+"About Spidercal" = "À propos de Spidercal";
 /* About prefs tab label */
 "About" = "À propos";
 "Add Location or Video Call" = "Ajouter un lieu ou un appel vidéo";
@@ -38,20 +38,18 @@
 "Appearance" = "Apparence";
 "Are you sure you want to delete this event?" = "Êtes-vous sûr de vouloir supprimer cet événement ?";
 "At time of event" = "au moment de l'événement";
-"Automatically check for updates" = "Rechercher automatiquement les mises à jour";
 "Beep beep on the hour" = "Sonner toutes les heures";
 "Below menu bar icon" = "Sous l'icône de la barre des menus";
 "Calendar" = "Calendrier";
 "Calendar access denied.
 
-Itsycal is more useful when it can display events from your calendars. You can change this setting in System Settings › Privacy & Security › Calendars" = "L'accès au calendrier est refusé.
+Spidercal is more useful when it can display events from your calendars. You can change this setting in System Settings › Privacy & Security › Calendars" = "L'accès au calendrier est refusé.
 
-Itsycal est plus utile quand il peut afficher les événements de vos calendriers. Vous pouvez modifier ce paramètre dans les Réglages Système › Confidentialité et sécurité › Calendriers.";
+Spidercal est plus utile quand il peut afficher les événements de vos calendriers. Vous pouvez modifier ce paramètre dans les Réglages Système › Confidentialité et sécurité › Calendriers.";
 "Calendar access was denied." = "L'accès au calendrier est refusé.";
 /* Accessibility description for menu bar icon showing a grid of days */
 "Calendar grid" = "Grille de calendrier";
 "Cancel" = "Annuler";
-"Check for Updates…" = "Rechercher les mises à jour…";
 /* Accessibility label for a reminder's checkbox in the event list */
 "Completed" = "Terminé";
 "Copy" = "Copier";
@@ -92,15 +90,15 @@ Itsycal est plus utile quand il peut afficher les événements de vos calendrier
 "Help…" = "Aide…";
 "Hide icon" = "Masquer l'icône";
 "Highlight:" = "Mettre en évidence :";
-"Itsycal cannot create a new event unless there is at least one calendar you have permission to modify." = "Itsycal ne peut pas créer de nouvel événement si vous ne possédez pas au moins un calendrier avec la permission de modification.";
-/* Accessibility description for menu bar icon showing the Itsycal face */
-"Itsycal face" = "Visage d'Itsycal";
-"Itsycal is more useful when you allow it to add events to your calendars. You can change this setting in System Settings › Privacy & Security › Calendars." = "Itsycal est plus utile lorsque vous lui permettez d'ajouter des événements à vos calendriers. Vous pouvez modifier ce paramètre dans les Réglages Système › Confidentialité et sécurité › Calendriers.";
-"Itsycal must be run from the Applications folder in order to work properly.
+"Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "Spidercal ne peut pas créer de nouvel événement si vous ne possédez pas au moins un calendrier avec la permission de modification.";
+/* Accessibility description for menu bar icon showing the Spidercal face */
+"Spidercal face" = "Visage d'Spidercal";
+"Spidercal is more useful when you allow it to add events to your calendars. You can change this setting in System Settings › Privacy & Security › Calendars." = "Spidercal est plus utile lorsque vous lui permettez d'ajouter des événements à vos calendriers. Vous pouvez modifier ce paramètre dans les Réglages Système › Confidentialité et sécurité › Calendriers.";
+"Spidercal must be run from the Applications folder in order to work properly.
 
-Please quit Itsycal, move it to the Applications folder, and relaunch." = "Itsycal doit être exécuté à partir du dossier Applications afin de fonctionner correctement.
+Please quit Spidercal, move it to the Applications folder, and relaunch." = "Spidercal doit être exécuté à partir du dossier Applications afin de fonctionner correctement.
 
-S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et relancer.";
+S'il vous plaît quitter Spidercal, le déplacer dans le dossier Applications, et relancer.";
 /* Button in the event popover that joins the event's video meeting (Zoom, Teams, etc.) */
 "Join" = "Rejoindre";
 "Keyboard shortcut" = "Raccourci clavier";
@@ -119,7 +117,7 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 /* Accessibility label for menu bar icon picker */
 "Menu bar icon" = "Icône de la barre des menus";
 "Monday" = "lundi";
-"Move Itsycal to the Applications folder" = "Déplacer Itsycal dans le dossier Applications";
+"Move Spidercal to the Applications folder" = "Déplacer Spidercal dans le dossier Applications";
 /* Repeat ends never */
 "Never" = "jamais";
 "New Event" = "Nouvel événement";
@@ -138,11 +136,11 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 "Outlined date" = "Date avec contour";
 /* Heading of the agenda's section of overdue reminders */
 "Overdue" = "En retard";
-/* Tooltip for the pin button, which keeps Itsycal's window open */
-"Pin Itsycal" = "Maintenir Itsycal visible";
+/* Tooltip for the pin button, which keeps Spidercal's window open */
+"Pin Spidercal" = "Maintenir Spidercal visible";
 /* Tooltip for the calendar's button that shows the previous month */
 "Previous Month" = "Mois précédent";
-"Quit Itsycal" = "Quitter Itsycal";
+"Quit Spidercal" = "Quitter Spidercal";
 /* Heading in Settings before reminders access is granted */
 "Reminders" = "Rappels";
 "Reminders access denied. You can change this setting in System Settings › Privacy & Security › Reminders" = "Accès aux rappels refusé. Vous pouvez modifier ce paramètre dans les Réglages Système › Confidentialité et sécurité › Rappels.";
@@ -180,8 +178,8 @@ S'il vous plaît quitter Itsycal, le déplacer dans le dossier Applications, et 
 "Today" = "Aujourd'hui";
 "Top right of screen" = "En haut à droite de l'écran";
 "Tuesday" = "mardi";
-/* Tooltip for the pin button while Itsycal is pinned */
-"Unpin Itsycal" = "Ne plus maintenir Itsycal visible";
+/* Tooltip for the pin button while Spidercal is pinned */
+"Unpin Spidercal" = "Ne plus maintenir Spidercal visible";
 "Use colored dots" = "Utiliser des indicateurs colorés";
 "Wednesday" = "mercredi";
 "Window position:" = "Position de la fenêtre :";

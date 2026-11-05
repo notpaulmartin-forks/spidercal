@@ -12,6 +12,7 @@
 
 // NSUserDefaults keys
 extern NSString * const kPinItsycal;
+extern NSString * const kAgendaHeight; // the height dragged to; none means the default
 extern NSString * const kShowEventDays;
 extern NSString * const kShowWeeks;
 extern NSString * const kWeekStartDOW;

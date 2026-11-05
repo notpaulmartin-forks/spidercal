@@ -102,7 +102,7 @@ static const CGFloat kVerticalPadding = 11;
     self = [super initWithFrame:frameRect];
     if (self) {
         self.wantsLayer = YES;
-        self.additionalSafeAreaInsets = NSEdgeInsetsMake(kArrowHeight + kVerticalPadding, 0, kVerticalPadding, 0);
+        self.additionalSafeAreaInsets = NSEdgeInsetsMake(kArrowHeight + kVerticalPadding, 0, 0, 0);
 
         // The window's shape is a rounded body with a little arrow at
         // the top. Masking our layer to that shape clips our background

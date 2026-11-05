@@ -26,7 +26,7 @@
 "15 minutes before" = "15 minut předem";
 "30 minutes before" = "30 minut předem";
 "31 days" = "31 dnů";
-"About Itsycal" = "O aplikaci Itsycal";
+"About Spidercal" = "O aplikaci Spidercal";
 /* About prefs tab label */
 "About" = "O aplikaci";
 "Add Location or Video Call" = "Přidejte místo nebo videohovor";
@@ -38,20 +38,18 @@
 "Appearance" = "Vzhled";
 "Are you sure you want to delete this event?" = "Opravdu chcete tuto událost smazat?";
 "At time of event" = "V čase události";
-"Automatically check for updates" = "Automaticky vyhledávat aktualizace";
 "Beep beep on the hour" = "Zapípat každou hodinu";
 "Below menu bar icon" = "Pod ikonou v řádku nabídek";
 "Calendar" = "Kalendář";
 "Calendar access denied.
 
-Itsycal is more useful when it can display events from your calendars. You can change this setting in System Settings › Privacy & Security › Calendars" = "Přístup ke kalendáři byl odepřen.
+Spidercal is more useful when it can display events from your calendars. You can change this setting in System Settings › Privacy & Security › Calendars" = "Přístup ke kalendáři byl odepřen.
 
-Itsycal je užitečnější, pokud může zobrazovat události z vašich kalendářů. Toto nastavení můžete změnit v Nastavení systému › Soukromí a zabezpečení › Kalendáře";
+Spidercal je užitečnější, pokud může zobrazovat události z vašich kalendářů. Toto nastavení můžete změnit v Nastavení systému › Soukromí a zabezpečení › Kalendáře";
 "Calendar access was denied." = "Přístup ke kalendáři byl odepřen.";
 /* Accessibility description for menu bar icon showing a grid of days */
 "Calendar grid" = "Mřížka kalendáře";
 "Cancel" = "Zrušit";
-"Check for Updates…" = "Vyhledat aktualizace…";
 /* Accessibility label for a reminder's checkbox in the event list */
 "Completed" = "Vyřízeno";
 "Copy" = "Kopírovat";
@@ -92,15 +90,15 @@ Itsycal je užitečnější, pokud může zobrazovat události z vašich kalend
 "Help…" = "Nápověda…";
 "Hide icon" = "Skrýt ikonu";
 "Highlight:" = "Zvýraznit:";
-"Itsycal cannot create a new event unless there is at least one calendar you have permission to modify." = "Itsycal nemůže vytvořit novou událost, pokud nemáte oprávnění k úpravám alespoň v jednom kalendáři.";
-/* Accessibility description for menu bar icon showing the Itsycal face */
-"Itsycal face" = "Obličej Itsycal";
-"Itsycal is more useful when you allow it to add events to your calendars. You can change this setting in System Settings › Privacy & Security › Calendars." = "Itsycal je užitečnější, pokud mu povolíte přidávat události do vašich kalendářů. Toto nastavení můžete změnit v Nastavení systému › Soukromí a zabezpečení › Kalendáře.";
-"Itsycal must be run from the Applications folder in order to work properly.
+"Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "Spidercal nemůže vytvořit novou událost, pokud nemáte oprávnění k úpravám alespoň v jednom kalendáři.";
+/* Accessibility description for menu bar icon showing the Spidercal face */
+"Spidercal face" = "Obličej Spidercal";
+"Spidercal is more useful when you allow it to add events to your calendars. You can change this setting in System Settings › Privacy & Security › Calendars." = "Spidercal je užitečnější, pokud mu povolíte přidávat události do vašich kalendářů. Toto nastavení můžete změnit v Nastavení systému › Soukromí a zabezpečení › Kalendáře.";
+"Spidercal must be run from the Applications folder in order to work properly.
 
-Please quit Itsycal, move it to the Applications folder, and relaunch." = "Má-li Itsycal fungovat správně, je nutné jej spustit ze složky „Aplikace“.
+Please quit Spidercal, move it to the Applications folder, and relaunch." = "Má-li Spidercal fungovat správně, je nutné jej spustit ze složky „Aplikace“.
 
-Ukončete prosím Itsycal, přesuňte jej do složky „Aplikace“ a znovu jej spusťte.";
+Ukončete prosím Spidercal, přesuňte jej do složky „Aplikace“ a znovu jej spusťte.";
 /* Button in the event popover that joins the event's video meeting (Zoom, Teams, etc.) */
 "Join" = "Připojit";
 "Keyboard shortcut" = "Klávesová zkratka";
@@ -119,7 +117,7 @@ Ukončete prosím Itsycal, přesuňte jej do složky „Aplikace“ a znovu jej
 /* Accessibility label for menu bar icon picker */
 "Menu bar icon" = "Ikona v řádku nabídek";
 "Monday" = "pondělí";
-"Move Itsycal to the Applications folder" = "Přesuňte Itsycal do složky Aplikace";
+"Move Spidercal to the Applications folder" = "Přesuňte Spidercal do složky Aplikace";
 /* Repeat ends never */
 "Never" = "Nikdy";
 "New Event" = "Nová událost";
@@ -138,11 +136,11 @@ Ukončete prosím Itsycal, přesuňte jej do složky „Aplikace“ a znovu jej
 "Outlined date" = "Datum s obrysem";
 /* Heading of the agenda's section of overdue reminders */
 "Overdue" = "Po termínu";
-/* Tooltip for the pin button, which keeps Itsycal's window open */
-"Pin Itsycal" = "Přišpendlit Itsycal";
+/* Tooltip for the pin button, which keeps Spidercal's window open */
+"Pin Spidercal" = "Přišpendlit Spidercal";
 /* Tooltip for the calendar's button that shows the previous month */
 "Previous Month" = "Předchozí měsíc";
-"Quit Itsycal" = "Ukončit Itsycal";
+"Quit Spidercal" = "Ukončit Spidercal";
 /* Heading in Settings before reminders access is granted */
 "Reminders" = "Připomínky";
 "Reminders access denied. You can change this setting in System Settings › Privacy & Security › Reminders" = "Přístup k připomínkám byl odepřen. Toto nastavení můžete změnit v Nastavení systému › Soukromí a zabezpečení › Připomínky";
@@ -180,8 +178,8 @@ Ukončete prosím Itsycal, přesuňte jej do složky „Aplikace“ a znovu jej
 "Today" = "Dnes";
 "Top right of screen" = "Vpravo nahoře na obrazovce";
 "Tuesday" = "úterý";
-/* Tooltip for the pin button while Itsycal is pinned */
-"Unpin Itsycal" = "Odšpendlit Itsycal";
+/* Tooltip for the pin button while Spidercal is pinned */
+"Unpin Spidercal" = "Odšpendlit Spidercal";
 "Use colored dots" = "Používat barevné tečky";
 "Wednesday" = "středa";
 "Window position:" = "Umístění okna:";

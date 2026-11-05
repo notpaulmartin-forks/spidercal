@@ -8,7 +8,6 @@
 #import "MoLoginItem.h"
 #import "MoVFLHelper.h"
 #import "MASShortcut/Shortcut.h"
-#import "Sparkle/SUUpdater.h"
 
 @implementation PrefsGeneralVC
 {
@@ -40,7 +39,6 @@
     // Checkboxes
     _login = chkbx(NSLocalizedString(@"Launch at login", @""));
     _login.action = @selector(launchAtLogin:);
-    NSButton *checkUpdates = chkbx(NSLocalizedString(@"Automatically check for updates", @""));
     NSButton *beepBeep = chkbx(NSLocalizedString(@"Beep beep on the hour", @""));
 
     // Shortcut label
@@ -65,10 +63,9 @@
     [positionPopup.cell setAccessibilityTitleUIElement:positionLabel.cell];
     [v addSubview:positionPopup];
 
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_login, checkUpdates, beepBeep, shortcutLabel, shortcutView, positionLabel, positionPopup)];
-    [vfl :@"V:|-m-[_login]-[checkUpdates]-[beepBeep]-m-[shortcutLabel]-3-[shortcutView(25)]-30-[positionPopup]-m-|"];
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_login, beepBeep, shortcutLabel, shortcutView, positionLabel, positionPopup)];
+    [vfl :@"V:|-m-[_login]-[beepBeep]-m-[shortcutLabel]-3-[shortcutView(25)]-30-[positionPopup]-m-|"];
     [vfl :@"H:|-m-[_login]-(>=m)-|"];
-    [vfl :@"H:|-m-[checkUpdates]-(>=m)-|"];
     [vfl :@"H:|-m-[beepBeep]-(>=m)-|"];
     [vfl :@"H:|-(>=m)-[shortcutLabel]-(>=m)-|"];
     [vfl :@"H:|-m-[shortcutView(>=220)]-m-|"];
@@ -77,8 +74,6 @@
     // Center shortcutLabel
     [v addConstraint:[NSLayoutConstraint constraintWithItem:shortcutLabel attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:v attribute:NSLayoutAttributeCenterX multiplier:1 constant:0]];
 
-    // Binding for Sparkle automatic update checks
-    [checkUpdates bind:@"value" toObject:[SUUpdater sharedUpdater] withKeyPath:@"automaticallyChecksForUpdates" options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
 
     // Binding for hourly beep
     [beepBeep bind:@"value" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kBeepBeepOnTheHour] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];

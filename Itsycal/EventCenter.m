@@ -67,7 +67,18 @@ static NSComparisonResult CompareItemsOnDay(EventInfo *e1, EventInfo *e2); // se
 typedef EKEvent *(^EventMaker)(EKEventStore *store);
 static EventMaker EventMakerForEvent(EKEvent *event); // see below
 
+#ifdef DEBUG
+// Sample data so the UI can be checked without calendar access or
+// anyone's real events. Run a Debug build with SPIDERCAL_FIXTURE=1.
+static BOOL FixtureEnabled(void) {
+    return NSProcessInfo.processInfo.environment[@"SPIDERCAL_FIXTURE"] != nil;
+}
+#endif
+
 @implementation EventCenter {                      // Accessed on:
+#ifdef DEBUG
+    NSArray<EKEvent *>   *_fixtureEvents;
+#endif
     EKEventStore         *_store;
     NSCalendar           *_cal;
     NSMutableDictionary  *_eventsForDate;          // _queueWork
@@ -126,6 +137,12 @@ static EventMaker EventMakerForEvent(EKEvent *event); // see below
         _queueIsol = dispatch_queue_create("com.mowglii.Itsycal.queueIsol", DISPATCH_QUEUE_SERIAL);
         _queueIsol2 = dispatch_queue_create("com.mowglii.Itsycal.queueIsol2", DISPATCH_QUEUE_SERIAL);
         _store = [EKEventStore new];
+#ifdef DEBUG
+        if (FixtureEnabled()) {
+            [self _loadFixture];
+            return self;
+        }
+#endif
         [_store requestFullAccessToEventsWithCompletion:requestCompletionHandler];
 
         // Refetch everything when the event store has changed.
@@ -143,7 +160,93 @@ static EventMaker EventMakerForEvent(EKEvent *event); // see below
 
 #pragma mark - Public (main thread)
 
+#ifdef DEBUG
+- (void)_loadFixture {
+    NSArray *calendarSpecs = @[@[@"Work", NSColor.systemBlueColor], @[@"Home", NSColor.systemGreenColor],
+                               @[@"Health", NSColor.systemOrangeColor], @[@"Clubs & Societies", NSColor.systemPurpleColor]];
+    NSMutableArray *sources = [NSMutableArray arrayWithObject:@"iCloud"];
+    NSMutableDictionary<NSString *, EKCalendar *> *calendars = [NSMutableDictionary new];
+    for (NSArray *spec in calendarSpecs) {
+        EKCalendar *calendar = [EKCalendar calendarForEntityType:EKEntityTypeEvent eventStore:_store];
+        calendar.title = spec[0];
+        calendar.color = spec[1];
+        calendars[spec[0]] = calendar;
+        CalendarInfo *info = [CalendarInfo new];
+        info.calendar = calendar;
+        info.selected = YES;
+        [sources addObject:info];
+    }
+    _sourcesAndCalendars = sources;
+
+    // Day offset from today, start hour and minute (-1 = all-day), length
+    // in minutes (all-day: in days), calendar, title, location.
+    NSArray *specs = @[
+        @[@0,  @10, @0,  @60,  @"Work",   @"Design review", @""],
+        @[@0,  @12, @30, @60,  @"Home",   @"Lunch with Anna", @"Café Einstein Stammhaus, Kurfürstenstraße 58, Berlin"],
+        @[@0,  @16, @0,  @45,  @"Work",   @"Sync with the platform team", @"https://zoom.us/j/1234567890"],
+        @[@1,  @9,  @15, @45,  @"Health", @"Dentist", @"Praxis Dr. Weber"],
+        @[@1,  @-1, @0,  @1,   @"Home",   @"Mum's birthday", @""],
+        @[@2,  @-1, @0,  @3,   @"Home",   @"Weekend away in the Harz mountains with the whole family", @""],
+        @[@4,  @10, @0,  @90,  @"Work",   @"Sprint planning", @""],
+        @[@4,  @18, @0,  @60,  @"Clubs & Societies", @"Gym", @""],
+        @[@8,  @19, @30, @150, @"Home",   @"Dinner at Lina's", @""],
+        @[@11, @9,  @0,  @30,  @"Health", @"Call dentist about invoice", @""],
+        @[@13, @14, @0,  @60,  @"Work",   @"Quarterly review", @"Room 4.12"],
+        @[@19, @19, @0,  @90,  @"Clubs & Societies", @"Book club", @""],
+    ];
+    NSCalendar *cal = _cal;
+    NSDate *today = [cal startOfDayForDate:[NSDate new]];
+    NSMutableArray<EKEvent *> *events = [NSMutableArray new];
+    NSMutableDictionary<NSDate *, NSMutableArray *> *byDate = [NSMutableDictionary new];
+    for (NSArray *spec in specs) {
+        NSDate *day = [cal dateByAddingUnit:NSCalendarUnitDay value:[spec[0] integerValue] toDate:today options:0];
+        BOOL allDay = [spec[1] integerValue] < 0;
+        EKEvent *event = [EKEvent eventWithEventStore:_store];
+        event.title = spec[5];
+        event.calendar = calendars[spec[4]];
+        if ([spec[6] hasPrefix:@"http"]) event.URL = [NSURL URLWithString:spec[6]];
+        else if ([spec[6] length]) event.location = spec[6];
+        event.allDay = allDay;
+        if (allDay) {
+            event.startDate = day;
+            event.endDate = [cal dateByAddingUnit:NSCalendarUnitDay value:[spec[3] integerValue] - 1 toDate:day options:0];
+        }
+        else {
+            event.startDate = [cal dateBySettingHour:[spec[1] integerValue] minute:[spec[2] integerValue] second:0 ofDate:day options:0];
+            event.endDate = [event.startDate dateByAddingTimeInterval:[spec[3] integerValue] * 60];
+        }
+        [events addObject:event];
+        NSInteger days = allDay ? [spec[3] integerValue] : 1;
+        for (NSInteger i = 0; i < days; i++) {
+            NSDate *date = [cal dateByAddingUnit:NSCalendarUnitDay value:i toDate:day options:0];
+            EventInfo *info = [EventInfo new];
+            info.event = event;
+            info.date = date;
+            info.isAllDay = allDay;
+            info.meetingURL = MeetingURLForEvent(event);
+            info.didCheckMeetingURL = YES;
+            if (!byDate[date]) byDate[date] = [NSMutableArray new];
+            [byDate[date] addObject:info];
+        }
+    }
+    for (NSMutableArray *infos in byDate.allValues) {
+        [infos sortUsingComparator:^NSComparisonResult(EventInfo *a, EventInfo *b) {
+            if (a.isAllDay != b.isAllDay) return a.isAllDay ? NSOrderedAscending : NSOrderedDescending;
+            return [a.startDate compare:b.startDate];
+        }];
+    }
+    _fixtureEvents = events;
+    _filteredEventsForDate = byDate;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.delegate eventCenterEventsChanged];
+    });
+}
+#endif
+
 - (BOOL)calendarAccessGranted {
+#ifdef DEBUG
+    if (FixtureEnabled()) return YES;
+#endif
     return [EKEventStore authorizationStatusForEntityType:EKEntityTypeEvent] == EKAuthorizationStatusFullAccess;
 }
 
@@ -172,6 +275,9 @@ static EventMaker EventMakerForEvent(EKEvent *event); // see below
 }
 
 - (NSString *)defaultCalendarIdentifier {
+#ifdef DEBUG
+    if (FixtureEnabled()) return ((CalendarInfo *)[self sourcesAndCalendars][1]).calendar.calendarIdentifier;
+#endif
     EKCalendar *cal = [_store defaultCalendarForNewEvents];
     return cal.calendarIdentifier;
 }
@@ -260,7 +366,73 @@ static EventMaker EventMakerForEvent(EKEvent *event); // see below
     return reminders;
 }
 
+- (void)searchEventsMatching:(NSString *)query completion:(void (^)(NSArray *datesAndEvents))completion {
+    // The user's selected calendars (not reminder lists).
+    NSMutableArray<EKCalendar *> *calendars = [NSMutableArray new];
+    for (id obj in [self sourcesAndCalendars]) {
+        if (![obj isKindOfClass:[CalendarInfo class]]) continue;
+        CalendarInfo *info = obj;
+        if (info.selected && (info.calendar.allowedEntityTypes & EKEntityMaskEvent)) {
+            [calendars addObject:info.calendar];
+        }
+    }
+    if (calendars.count == 0 || query.length == 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(@[]); });
+        return;
+    }
+    dispatch_async(_queueWork, ^{
+        NSCalendar *cal = self->_cal;
+        NSDate *start = [cal startOfDayForDate:[NSDate new]];
+        NSDate *end = [cal dateByAddingUnit:NSCalendarUnitYear value:1 toDate:start options:0];
+        NSPredicate *predicate = [self->_store predicateForEventsWithStartDate:start endDate:end calendars:calendars];
+        NSArray<EKEvent *> *events = [self->_store eventsMatchingPredicate:predicate];
+#ifdef DEBUG
+        if (FixtureEnabled()) events = self->_fixtureEvents;
+#endif
+        NSMutableArray<EKEvent *> *matches = [NSMutableArray new];
+        for (EKEvent *event in events) {
+            if ([event.title localizedCaseInsensitiveContainsString:query] ||
+                [event.location localizedCaseInsensitiveContainsString:query] ||
+                (event.hasNotes && [event.notes localizedCaseInsensitiveContainsString:query])) {
+                [matches addObject:event];
+            }
+        }
+        [matches sortUsingSelector:@selector(compareStartDateWithEvent:)];
+        // Plenty to scroll through; refine the search for more.
+        if (matches.count > 100) [matches removeObjectsInRange:NSMakeRange(100, matches.count - 100)];
+
+        NSMutableArray *rows = [NSMutableArray new];
+        NSDate *currentDay = nil;
+        for (EKEvent *event in matches) {
+            // An event that started before today is listed today.
+            NSDate *day = [cal startOfDayForDate:[event.startDate laterDate:start]];
+            if (![day isEqualToDate:currentDay]) {
+                currentDay = day;
+                [rows addObject:day];
+            }
+            NSDate *nextDay = [cal dateByAddingUnit:NSCalendarUnitDay value:1 toDate:day options:0];
+            EventInfo *info = [EventInfo new];
+            info.event       = event;
+            info.date        = day;
+            info.isStartDate = ([cal isDate:day inSameDayAsDate:event.startDate] &&
+                                [event.endDate compare:nextDay] != NSOrderedAscending);
+            info.isEndDate   = ([cal isDate:day inSameDayAsDate:event.endDate] &&
+                                [event.startDate compare:day] == NSOrderedAscending);
+            info.isAllDay    = (event.allDay ||
+                                ([event.startDate compare:day] == NSOrderedAscending &&
+                                 [event.endDate compare:nextDay] != NSOrderedAscending));
+            info.meetingURL  = MeetingURLForEvent(event);
+            info.didCheckMeetingURL = YES;
+            [rows addObject:info];
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(rows); });
+    });
+}
+
 - (void)fetchEvents {
+#ifdef DEBUG
+    if (FixtureEnabled()) return;
+#endif
     //os_log(OS_LOG_DEFAULT, "%s", __FUNCTION__);
     MoDate startMoDate = [self.delegate fetchStartDate];
     MoDate endMoDate   = [self.delegate fetchEndDate];
@@ -272,6 +444,9 @@ static EventMaker EventMakerForEvent(EKEvent *event); // see below
 }
 
 - (void)refetchAll {
+#ifdef DEBUG
+    if (FixtureEnabled()) return;
+#endif
     //os_log(OS_LOG_DEFAULT, "%s", __FUNCTION__);
     // Either the system told us the event store has changed or
     // we were called by the main controller. Clear the cache
@@ -287,6 +462,9 @@ static EventMaker EventMakerForEvent(EKEvent *event); // see below
 }
 
 - (void)refresh {
+#ifdef DEBUG
+    if (FixtureEnabled()) return;
+#endif
     dispatch_async(_queueWork, ^{
         [self->_store reset];
         [self->_store refreshSourcesIfNecessary];

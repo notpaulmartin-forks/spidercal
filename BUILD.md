@@ -18,7 +18,6 @@ cp Local.xcconfig.example Local.xcconfig
 
 4. Export notarized app to the Desktop.
 
-5. Run ./make_zips_and_appcast.sh
 
 ### Resources
 

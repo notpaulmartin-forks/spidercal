@@ -157,6 +157,13 @@ Themer *Theme = nil;
     return NSColor.systemBlueColor;
 }
 
+- (NSColor *)placeholderColor {
+    // Solid, like the icons in the fields. Text fields and text views
+    // draw the translucent system label colors differently, so with
+    // those the same placeholder color looks darker in some fields.
+    return [self buttonTintColor];
+}
+
 - (NSColor *)tooltipBackgroundColor {
     return LightDarkColor (NSColor.windowBackgroundColor, [NSColor colorWithWhite:0.17 alpha:1]);
 }

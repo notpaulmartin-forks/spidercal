@@ -122,6 +122,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     _weekStartDOW = 0;  // 0=Sunday, 1=Monday...
     _highlightedDOWs = DOWMaskNone;
     _showWeeks    = NO;
+    _weekGrid.hidden = YES;
     _doNotDrawOutlineAroundCurrentMonth = NO;
     _monthDate    = MakeDate(1583, 0, 1);   // _monthDate must be different from the
     _selectedDate = MakeDate(1583, 0, 1);   // date set in setMonthDate:selectedDate:
@@ -237,10 +238,15 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 {
     _showWeeks = showWeeks;
     CGFloat constant = showWeeks ? NSWidth(_weekGrid.frame) : 2;
+    // When off, the week numbers sit just left of the calendar. Hide
+    // them, as the window can be wider than the calendar.
+    if (showWeeks) _weekGrid.hidden = NO;
     [NSAnimationContext runAnimationGroup:^(NSAnimationContext *ctx) {
         [ctx setDuration:0.1];
         [self->_weeksConstraint.animator setConstant:constant];
-    } completionHandler:NULL];
+    } completionHandler:^{
+        self->_weekGrid.hidden = !self->_showWeeks;
+    }];
 }
 
 - (void)setShowEventDots:(BOOL)showEventDots

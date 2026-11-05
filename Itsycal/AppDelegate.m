@@ -7,6 +7,7 @@
 //
 
 #import "AppDelegate.h"
+#import <QuartzCore/QuartzCore.h>
 #import "Itsycal.h"
 #import "ItsycalWindow.h"
 #import "ViewController.h"
@@ -14,7 +15,6 @@
 #import "Sizer.h"
 #import "MoUtils.h"
 #import "MASShortcut/Shortcut.h"
-#import "Sparkle/SUUpdater.h"
 
 @implementation AppDelegate
 {
@@ -32,6 +32,7 @@
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     [defaults registerDefaults:@{
         kPinItsycal:           @(NO),
+        @"FocusNewEventOnOpen": @(YES), // Spidercal; see ViewController.m
         kShowWeeks:            @(NO),
         kHighlightedDOWs:      @0,
         kShowEventDays:        @7,
@@ -87,17 +88,13 @@
 - (void)applicationWillFinishLaunching:(NSNotification *)aNotification
 {
     NSApp.mainMenu = [self mainMenu];
-
-    // Create Sparkle's updater. This starts its update cycle.
-    [SUUpdater sharedUpdater];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
     // Ensure the user has moved Itsycal to the /Applications folder.
     // Having the user manually move Itsycal to /Applications turns off
-    // Gatekeeper Path Randomization (introduced in 10.12) and allows
-    // Itsycal to be updated with Sparkle. :P
+    // Gatekeeper Path Randomization (introduced in 10.12).
 #ifndef DEBUG
     [self checkIfRunFromApplicationsFolder];
 #endif
@@ -151,7 +148,95 @@
     // is created because Theme instantiation relies on checking a
     // property on the window to determine its appearance.
     [Theme bind:@"themePreference" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kThemePreference] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+
+#ifdef DEBUG
+    [self snapshotForTestingIfRequested];
+#endif
 }
+
+#ifdef DEBUG
+// Development aid, Debug builds only. Run with the environment
+// variable SPIDERCAL_SNAPSHOT=/path/to.png to open the window,
+// optionally type SPIDERCAL_TYPE into the New Event field (and
+// show the details if SPIDERCAL_EXPAND is set, and type
+// SPIDERCAL_LOCATION into its location field) or SPIDERCAL_SEARCH
+// into the Search field, save a picture of the window and quit.
+// SPIDERCAL_FIXTURE=1 uses sample events (see EventCenter.m).
+// Theme and size: pass -ThemePreference 0|1|2 -SizePreference 0|1|2.
+- (void)snapshotForTestingIfRequested
+{
+    NSDictionary *env = NSProcessInfo.processInfo.environment;
+    NSString *path = env[@"SPIDERCAL_SNAPSHOT"];
+    if (!path) return;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self->_vc keyboardShortcutActivated];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSWindow *window = self->_wc.window;
+            id quick = [self->_vc valueForKey:@"_quickVC"];
+            if (env[@"SPIDERCAL_SEARCH"]) {
+                [quick performSelector:@selector(focusSearch)];
+                [(NSText *)[window fieldEditor:YES forObject:nil] insertText:env[@"SPIDERCAL_SEARCH"]];
+            }
+            else if (env[@"SPIDERCAL_TYPE"]) {
+                [quick performSelector:@selector(focusEntry)];
+                id responder = window.firstResponder;
+                if ([responder isKindOfClass:[NSTextView class]]) {
+                    [(NSTextView *)responder insertText:env[@"SPIDERCAL_TYPE"] replacementRange:NSMakeRange(NSNotFound, 0)];
+                }
+                if (env[@"SPIDERCAL_EXPAND"]) {
+                    [quick performSelector:NSSelectorFromString(@"toggleExpanded:") withObject:nil];
+                }
+                if (env[@"SPIDERCAL_LOCATION"]) {
+                    // Type into the details form's location field.
+                    NSTextField *location = [[quick valueForKey:@"_eventVC"] valueForKey:@"_location"];
+                    [window makeFirstResponder:location];
+                    NSTextView *editor = (NSTextView *)location.currentEditor;
+                    [editor insertText:env[@"SPIDERCAL_LOCATION"] replacementRange:NSMakeRange(NSNotFound, 0)];
+                }
+            }
+            if (env[@"SPIDERCAL_DRAG"] || env[@"SPIDERCAL_DOUBLECLICK"]) {
+                // Drive the agenda's handle with real mouse events.
+                NSView *handle = [self->_vc valueForKey:@"_agendaHandle"];
+                NSPoint start = [handle convertPoint:NSMakePoint(NSMidX(handle.bounds), 2) toView:nil];
+                NSView *hit = [window.contentView.superview hitTest:start];
+                NSLog(@"edge strip height=%.0f, click 2pt above the window's bottom edge lands on: %@", NSHeight(handle.frame), hit.className);
+                NSEvent* (^mouse)(NSEventType, NSPoint, NSInteger) = ^NSEvent* (NSEventType type, NSPoint point, NSInteger clicks) {
+                    return [NSEvent mouseEventWithType:type location:point modifierFlags:0 timestamp:0 windowNumber:window.windowNumber context:nil eventNumber:0 clickCount:clicks pressure:1];
+                };
+                if (env[@"SPIDERCAL_DOUBLECLICK"]) {
+                    [handle mouseDown:mouse(NSEventTypeLeftMouseDown, start, 2)];
+                    [handle mouseUp:mouse(NSEventTypeLeftMouseUp, start, 2)];
+                }
+                else {
+                    CGFloat dy = [env[@"SPIDERCAL_DRAG"] doubleValue]; // positive is down
+                    NSPoint end = NSMakePoint(start.x, start.y - dy);
+                    [handle mouseDown:mouse(NSEventTypeLeftMouseDown, start, 1)];
+                    [handle mouseDragged:mouse(NSEventTypeLeftMouseDragged, end, 1)];
+                    [handle mouseUp:mouse(NSEventTypeLeftMouseUp, end, 1)];
+                }
+            }
+            if (env[@"SPIDERCAL_PREFS"]) {
+                [self->_vc performSelector:@selector(showPrefs:) withObject:nil];
+            }
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                NSView *contentView = window.contentView;
+                // Render the layers, as the window shows them.
+                CGFloat scale = window.backingScaleFactor;
+                NSSize size = contentView.bounds.size;
+                NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:size.width * scale pixelsHigh:size.height * scale bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
+                CGContextRef context = [NSGraphicsContext graphicsContextWithBitmapImageRep:rep].CGContext;
+                CGContextSetFillColorWithColor(context, NSColor.windowBackgroundColor.CGColor);
+                CGContextFillRect(context, CGRectMake(0, 0, size.width * scale, size.height * scale));
+                CGContextScaleCTM(context, scale, scale);
+                [contentView.layer renderInContext:context];
+                [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:path atomically:YES];
+                NSLog(@"snapshot %@ window=%@ firstResponder=%@", path, NSStringFromRect(window.frame), window.firstResponder.className);
+                exit(0);
+            });
+        });
+    });
+}
+#endif
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
 {
@@ -201,12 +286,12 @@
     // Itsycal is not being run from /Applications.
     [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
     NSAlert *alert = [NSAlert new];
-    alert.messageText = NSLocalizedString(@"Move Itsycal to the Applications folder", nil);
-    alert.informativeText = [NSLocalizedString(@"Itsycal must be run from the Applications folder in order to work properly.\n\nPlease quit Itsycal, move it to the Applications folder, and relaunch.", nil) stringByAppendingString:[NSString stringWithFormat:@"\n\n%@", bundlePath]];
+    alert.messageText = NSLocalizedString(@"Move Spidercal to the Applications folder", nil);
+    alert.informativeText = [NSLocalizedString(@"Spidercal must be run from the Applications folder in order to work properly.\n\nPlease quit Spidercal, move it to the Applications folder, and relaunch.", nil) stringByAppendingString:[NSString stringWithFormat:@"\n\n%@", bundlePath]];
     alert.icon = [NSImage imageNamed:@"move"];
     alert.showsHelp = YES;
     alert.delegate = self;
-    [alert addButtonWithTitle:NSLocalizedString(@"Quit Itsycal", @"")];
+    [alert addButtonWithTitle:NSLocalizedString(@"Quit Spidercal", @"")];
     [alert runModal];
     [NSApp terminate:nil];
 }
@@ -221,7 +306,7 @@
 - (NSMenu *)mainMenu
 {
     NSMenu *menu = [NSMenu new];
-    [menu addItemWithTitle:@"Quit Itsycal" action:@selector(terminate:) keyEquivalent:@"q"];
+    [menu addItemWithTitle:@"Quit Spidercal" action:@selector(terminate:) keyEquivalent:@"q"];
     [menu addItemWithTitle:@"Close" action:@selector(performClose:) keyEquivalent:@"w"];
     // AppKit implements undo: and redo: (in NSWindow and NSTextView),
     // but no public header declares them, so look them up by name.

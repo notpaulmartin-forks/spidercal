@@ -15,6 +15,8 @@
 #import "DatePickerVC.h"
 #import "SBCalendar.h"
 #import "EventViewController.h"
+#import "QuickEntryViewController.h"
+#import "AgendaResizeHandle.h"
 #import "TooltipController.h"
 #import "TooltipViewController.h"
 #import "PrefsVC.h"
@@ -26,8 +28,8 @@
 #import "MoPopover.h"
 #import "MoVFLHelper.h"
 #import "MoUtils.h"
-#import "Sparkle/SUUpdater.h"
 #import "Themer.h"
+#import "Sizer.h"
 
 // Keys observed in NSUserDefaults for preference changes. Registered in
 // -fileNotifications and unregistered in -dealloc.
@@ -39,14 +41,35 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
               kShowOverdueReminders];
 }
 
+// Spidercal: user default (no UI). Put the cursor in the New Event
+// field when the window opens, so you can just start typing.
+// Set to NO to keep the keyboard on the calendar as in Itsycal.
+static NSString * const kFocusNewEventOnOpen = @"FocusNewEventOnOpen";
+
+// Under the buttons when there's no agenda.
+static const CGFloat kWindowBottomMargin = 8;
+
+@interface ViewController () <QuickEntryDelegate>
+@end
+
 @implementation ViewController
 {
+    QuickEntryViewController *_quickVC;
+    AgendaResizeHandle *_agendaHandle;
+    NSLayoutConstraint *_agendaBottom;
+    CGFloat _agendaHeightLimit;     // the height dragged to; 0 means the default
+    CGFloat _agendaDragStartHeight;
+    NSView *_noResults;
+    NSTextField *_noResultsLabel;
+    NSLayoutConstraint *_noResultsHeight;
+    NSString  *_searchQuery;      // non-nil while the agenda shows search results
+    NSUInteger _searchGeneration; // ignore results of superseded searches
     EventCenter   *_ec;
     MoCalendar    *_moCal;
     NSCalendar    *_nsCal;
     NSStatusItem  *_statusItem;
     id             _rightClickMonitor;
-    MoButton      *_btnAdd, *_btnCal, *_btnOpt, *_btnPin;
+    MoButton      *_btnCal, *_btnOpt, *_btnPin;
     NSWindowController    *_prefsWC;
     AgendaViewController  *_agendaVC;
     TooltipController     *_tooltips;
@@ -62,7 +85,6 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     NSRect     _screenFrame;
     NSRect     _fallbackAnchor;
     BOOL       _usesFallbackPosition;
-    NSPopover *_newEventPopover;
     NSMutableArray *_notificationTokens;
 }
 
@@ -94,6 +116,13 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     // Tooltips for the calendar's days and the window's buttons
     _tooltips = [TooltipController new];
 
+    // Spidercal: New Event and Search fields above the calendar
+    _quickVC = [QuickEntryViewController new];
+    _quickVC.delegate = self;
+    [self addChildViewController:_quickVC];
+    NSView *quick = _quickVC.view;
+    [v addSubview:quick];
+
     // MoCalendar
     _moCal = [MoCalendar new];
     _moCal.delegate = self;
@@ -115,8 +144,8 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
         return btn;
     };
 
-    // Add event, Calendar.app, and Options buttons
-    _btnAdd = btn(@"btnAdd", @"n", @selector(addCalendarEvent:));
+    // Calendar.app and Options buttons. (New events are typed
+    // in the field at the top; ⌘N puts the cursor there.)
     _btnCal = btn(@"btnCal", @"o", @selector(showCalendarApp:));
     _btnOpt = btn(@"btnOpt", @"", @selector(showOptionsMenu:));
     _btnPin = btn(@"btnPin", @"p", @selector(pin:));
@@ -125,9 +154,6 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     [_btnPin setButtonType:NSButtonTypeToggle];
 
     // The buttons' tooltips. Their badges show the key equivalents.
-    [_tooltips addTooltipToView:_btnAdd label:^NSString *{
-        return NSLocalizedString(@"New Event", @"");
-    } shortcut:nil];
     [_tooltips addTooltipToView:_btnCal label:^NSString *{
         return NSLocalizedString(@"Open Calendar", @"");
     } shortcut:nil];
@@ -137,8 +163,8 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     __weak MoButton *btnPin = _btnPin;
     [_tooltips addTooltipToView:_btnPin label:^NSString *{
         return btnPin.state == NSControlStateValueOn
-            ? NSLocalizedString(@"Unpin Itsycal", @"Tooltip for the pin button while Itsycal is pinned")
-            : NSLocalizedString(@"Pin Itsycal", @"Tooltip for the pin button, which keeps Itsycal's window open");
+            ? NSLocalizedString(@"Unpin Spidercal", @"Tooltip for the pin button while Itsycal is pinned")
+            : NSLocalizedString(@"Pin Spidercal", @"Tooltip for the pin button, which keeps Itsycal's window open");
     } shortcut:nil];
     
     // Agenda
@@ -148,12 +174,67 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     NSView *agenda = _agendaVC.view;
     [v addSubview:agenda];
 
+    // Shown in the agenda's place when a search finds nothing.
+    _noResults = [NSView new];
+    _noResults.hidden = YES;
+    NSBox *noResultsLine = [NSBox new];
+    noResultsLine.boxType = NSBoxSeparator;
+    noResultsLine.translatesAutoresizingMaskIntoConstraints = NO;
+    _noResultsLabel = [NSTextField labelWithString:NSLocalizedString(@"No upcoming events found", @"Shown when a search finds nothing")];
+    _noResultsLabel.textColor = Theme.agendaEventDateTextColor;
+    _noResultsLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    _noResultsLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [_noResultsLabel setContentCompressionResistancePriority:1 forOrientation:NSLayoutConstraintOrientationHorizontal];
+    [_noResults addSubview:noResultsLine];
+    [_noResults addSubview:_noResultsLabel];
+    _noResultsHeight = [_noResults.heightAnchor constraintEqualToConstant:0];
+    [v addSubview:_noResults];
+    [NSLayoutConstraint activateConstraints:@[
+        _noResultsHeight,
+        [noResultsLine.topAnchor constraintEqualToAnchor:_noResults.topAnchor constant:3],
+        [noResultsLine.leadingAnchor constraintEqualToAnchor:_noResults.leadingAnchor constant:10],
+        [noResultsLine.trailingAnchor constraintEqualToAnchor:_noResults.trailingAnchor constant:-10],
+        [_noResultsLabel.topAnchor constraintEqualToAnchor:noResultsLine.bottomAnchor constant:2],
+        [_noResultsLabel.leadingAnchor constraintEqualToAnchor:_noResults.leadingAnchor constant:10],
+        [_noResultsLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_noResults.trailingAnchor constant:-10],
+    ]];
+
+    // Drag the bottom edge of the window to make the agenda taller or
+    // shorter. See -attachAgendaHandle.
+    _agendaHandle = [AgendaResizeHandle new];
+    _agendaHandle.translatesAutoresizingMaskIntoConstraints = NO;
+    _agendaHandle.hidden = YES;
+    __weak typeof(self) weakVC = self;
+    _agendaHandle.onDragBegan = ^{ [weakVC agendaHandleDragBegan]; };
+    _agendaHandle.onDrag = ^(CGFloat delta) { [weakVC agendaHandleDraggedBy:delta]; };
+    _agendaHandle.onDragEnded = ^{ [weakVC agendaHandleDragEnded]; };
+    _agendaHandle.onDoubleClick = ^{ [weakVC agendaHandleDoubleClicked]; };
+    _agendaHeightLimit = [[NSUserDefaults standardUserDefaults] doubleForKey:kAgendaHeight];
+
     // Constraints
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:nil views:NSDictionaryOfVariableBindings(_moCal, _btnAdd, _btnCal, _btnOpt, _btnPin, agenda)];
-    [vfl :@"H:|-2-[_moCal]-2-|"];
+    NSView *noResults = _noResults;
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:nil views:NSDictionaryOfVariableBindings(quick, _moCal, _btnCal, _btnOpt, _btnPin, noResults, agenda)];
+    [vfl :@"H:|[noResults]|"];
+    [vfl :@"H:|[quick]|"];
+    [vfl :@"H:|-(>=2)-[_moCal]-(>=2)-|"];
     [vfl :@"H:|[agenda]|"];
-    [vfl :@"H:|-8-[_btnAdd]-(>=0)-[_btnPin]-6-[_btnCal]-6-[_btnOpt]-8-|" :NSLayoutFormatAlignAllCenterY];
-    [vfl :@"V:|[_moCal]-6-[_btnOpt(22)]-1-[agenda]-(-1)-|"];
+    [vfl :@"H:|-(>=8)-[_btnPin]-6-[_btnCal]-6-[_btnOpt]-8-|" :NSLayoutFormatAlignAllCenterY];
+    [vfl :@"V:|[quick]-12-[_moCal]-6-[_btnOpt(22)]-1-[noResults][agenda]"];
+    _agendaBottom = [agenda.bottomAnchor constraintEqualToAnchor:v.bottomAnchor constant:-kWindowBottomMargin];
+    _agendaBottom.active = YES;
+
+    // The window is as wide as the calendar, as in Itsycal, unless
+    // the new event form needs more room. Then the calendar stays
+    // centered. (The priority is just above the one with which a
+    // window holds its size, so the window shrinks back.)
+    NSLayoutConstraint *calLeading = [_moCal.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:2];
+    NSLayoutConstraint *calTrailing = [_moCal.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-2];
+    calLeading.priority = NSLayoutPriorityWindowSizeStayPut + 10;
+    calTrailing.priority = NSLayoutPriorityWindowSizeStayPut + 10;
+    [NSLayoutConstraint activateConstraints:@[
+        calLeading, calTrailing,
+        [_moCal.centerXAnchor constraintEqualToAnchor:v.centerXAnchor],
+    ]];
     
     self.view = v;
 }
@@ -179,6 +260,8 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     [self createStatusItem];
     
     _ec = [[EventCenter alloc] initWithCalendar:_nsCal delegate:self];
+    _quickVC.ec = _ec;
+    _quickVC.cal = _nsCal;
     
     _tooltipVC = [TooltipViewController new];
     _tooltipVC.nsCal = _nsCal;
@@ -221,7 +304,37 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     _moCal.showWeeks = [defaults boolForKey:kShowWeeks];
     _moCal.doNotDrawOutlineAroundCurrentMonth = [defaults boolForKey:kDoNotDrawOutlineAroundCurrentMonth];
 
-    [self.itsycalWindow makeFirstResponder:_moCal];
+    [self attachAgendaHandle];
+    [self focusForWindowOpening];
+}
+
+// A thin strip on top of everything at the window's bottom edge, which
+// is the same edge as our view's. On the window's own view, like the
+// other things that float above our content.
+- (void)attachAgendaHandle
+{
+    NSView *windowView = self.view.superview;
+    if (!windowView || _agendaHandle.superview == windowView) return;
+    [windowView addSubview:_agendaHandle];
+    [NSLayoutConstraint activateConstraints:@[
+        [_agendaHandle.leadingAnchor constraintEqualToAnchor:windowView.leadingAnchor],
+        [_agendaHandle.trailingAnchor constraintEqualToAnchor:windowView.trailingAnchor],
+        [_agendaHandle.bottomAnchor constraintEqualToAnchor:windowView.bottomAnchor],
+        [_agendaHandle.heightAnchor constraintEqualToConstant:6],
+    ]];
+}
+
+// Where the keyboard goes when the window opens: the New Event
+// field (just start typing), or the calendar as in Itsycal.
+- (void)focusForWindowOpening
+{
+    _quickVC.eventUndoManager = self.itsycalWindow.undoManager;
+    if ([[NSUserDefaults standardUserDefaults] boolForKey:kFocusNewEventOnOpen] && !_quickVC.isSearching) {
+        [_quickVC focusEntry];
+    }
+    else {
+        [self.itsycalWindow makeFirstResponder:_moCal];
+    }
 }
 
 #pragma mark -
@@ -247,6 +360,12 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     else if (keyChar == ',' && cmdFlag) {
         [self showPrefs:self];
     }
+    else if (keyChar == 'n' && cmdFlag) {
+        [self addCalendarEvent:self];
+    }
+    else if (keyChar == 'f' && cmdFlag) {
+        [_quickVC focusSearch];
+    }
     else if (keyChar == 'T' && cmdShiftFlag) {
         [self showDatePickerPopover:self];
     }
@@ -263,68 +382,115 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
 
 - (void)addCalendarEvent:(id)sender
 {
-    // Close popover if it's already showing
-    if (_newEventPopover.shown) {
-        [_newEventPopover close];
-        // If sender is _moCal, we are here because
-        //  the user double-clicked on a date. We want
-        //  to open the popover at that date. If the
-        //  popover is already open, we close it and
-        //  then re-open it at the double-clicked date.
-        // If sender is NOT _moCal, we are here because
-        //  the user clicked the New Event button. This
-        //  is a toggle button, so if the popover is
-        //  already open, we close it and return.
-        if (sender != _moCal) return;
-    }
-    
+    // ⌘N, or a double-click on a date (which selects it, making
+    // it the new event's default day): type the event in the
+    // New Event field.
     [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
-    
+    if (![self quickEntryCanCreateEvents]) return;
+    [_quickVC focusEntry];
+}
+
+#pragma mark -
+#pragma mark QuickEntryDelegate
+
+- (BOOL)quickEntryCanCreateEvents
+{
+#ifdef DEBUG
+    // See -[AppDelegate snapshotForTestingIfRequested].
+    if (NSProcessInfo.processInfo.environment[@"SPIDERCAL_SNAPSHOT"]) return YES;
+#endif
     if (_ec.calendarAccessGranted == NO) {
         NSAlert *alert = [NSAlert new];
         alert.messageText = NSLocalizedString(@"Calendar access was denied.", @"");
-        alert.informativeText = NSLocalizedString(@"Itsycal is more useful when you allow it to add events to your calendars. You can change this setting in System Settings › Privacy & Security › Calendars.", @"");
+        alert.informativeText = NSLocalizedString(@"Spidercal is more useful when you allow it to add events to your calendars. You can change this setting in System Settings › Privacy & Security › Calendars.", @"");
         [alert runModal];
-        return;
+        return NO;
     }
     
     // Confirm that there are calendars which can be modified
     // and hold events (not just reminder lists).
-    BOOL atLeastOneModifiableCalendar = NO;
     for (id obj in [_ec sourcesAndCalendars]) {
         if ([obj isKindOfClass:[CalendarInfo class]] && 
             ((CalendarInfo *)obj).calendar.allowsContentModifications &&
             (((CalendarInfo *)obj).calendar.allowedEntityTypes & EKEntityMaskEvent)) {
-            atLeastOneModifiableCalendar = YES;
-            break;
+            return YES;
         }
     }
-    if (atLeastOneModifiableCalendar == NO) {
-        NSAlert *alert = [NSAlert new];
-        alert.messageText = NSLocalizedString(@"There are no modifiable calendars.", @"");
-        alert.informativeText = NSLocalizedString(@"Itsycal cannot create a new event unless there is at least one calendar you have permission to modify.", @"");
-        [alert runModal];
+    NSAlert *alert = [NSAlert new];
+    alert.messageText = NSLocalizedString(@"There are no modifiable calendars.", @"");
+    alert.informativeText = NSLocalizedString(@"Spidercal cannot create a new event unless there is at least one calendar you have permission to modify.", @"");
+    [alert runModal];
+    return NO;
+}
+
+- (NSDate *)quickEntrySelectedDate
+{
+    return MakeNSDateWithDate(_moCal.selectedDate, _nsCal);
+}
+
+- (void)quickEntryShowDate:(NSDate *)date
+{
+    MoDate moDate = MakeDateWithNSDate(date, _nsCal);
+    if (CompareDates(moDate, _moCal.selectedDate) != 0) {
+        _moCal.selectedDate = moDate;
+    }
+}
+
+- (void)quickEntryForwardKeyDown:(NSEvent *)event
+{
+    [_moCal keyDown:event];
+}
+
+- (void)showNoSearchResults:(BOOL)show
+{
+    _noResultsLabel.font = [NSFont systemFontOfSize:SizePref.fontSize];
+    _noResults.hidden = !show;
+    _noResultsHeight.constant = show ? ceil([[NSLayoutManager new] defaultLineHeightForFont:_noResultsLabel.font]) + 14 : 0;
+    [self updateWindowBottom];
+}
+
+- (void)quickEntryLayoutChanged
+{
+    [_agendaVC.view setNeedsLayout:YES];
+}
+
+- (void)quickEntryWantsToCloseWindow
+{
+    [self hideItsycalWindow];
+}
+
+- (void)quickEntrySearchChanged:(NSString *)query
+{
+    _searchGeneration++;
+    if (query == nil) {
+        // Back to the agenda.
+        [self showNoSearchResults:NO];
+        if (_searchQuery != nil) {
+            _searchQuery = nil;
+            [self updateAgenda];
+        }
         return;
     }
-
-    if (!_newEventPopover) {
-        _newEventPopover = [MoPopover new];
-        _newEventPopover.animates = NO;
-        _newEventPopover.delegate = self;
-        // Enable coloring the full background including the arrow.
-        // See EventViewController -loadView.
-        _newEventPopover.hasFullSizeContent = YES;
+    if (query.length == 0) {
+        // Nothing to search for yet: the agenda stays.
+        [self showNoSearchResults:NO];
+        if (_searchQuery != nil) {
+            _searchQuery = nil;
+            [self updateAgenda];
+        }
+        return;
     }
-    EventViewController *eventVC = [EventViewController new];
-    eventVC.ec = _ec;
-    eventVC.enclosingPopover = _newEventPopover;
-    eventVC.cal = _nsCal;
-    eventVC.title = @"";
-    eventVC.calSelectedDate = MakeNSDateWithDate(_moCal.selectedDate, _nsCal);
-    eventVC.eventUndoManager = self.itsycalWindow.undoManager;
-    
-    _newEventPopover.contentViewController = eventVC;
-    [_newEventPopover showRelativeToRect:_btnAdd.bounds ofView:_btnAdd preferredEdge:NSRectEdgeMinX];
+    _searchQuery = [query copy];
+    NSUInteger generation = _searchGeneration;
+    __weak typeof(self) weakSelf = self;
+    [_ec searchEventsMatching:query completion:^(NSArray *datesAndEvents) {
+        ViewController *vc = weakSelf;
+        if (!vc || vc->_searchGeneration != generation) return;
+        vc->_agendaVC.events = datesAndEvents;
+        [vc->_agendaVC reloadData];
+        [vc showNoSearchResults:datesAndEvents.count == 0];
+        [vc updateWindowBottom];
+    }];
 }
 
 - (void)showCalendarApp:(id)sender
@@ -393,8 +559,7 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     NSMenu *optMenu = [[NSMenu alloc] initWithTitle:@"Options Menu"];
     NSInteger i = 0;
 
-    [optMenu insertItemWithTitle:NSLocalizedString(@"About Itsycal", @"") action:@selector(showAbout:) keyEquivalent:@"" atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Check for Updates…", @"") action:@selector(checkForUpdates:) keyEquivalent:@"" atIndex:i++];
+    [optMenu insertItemWithTitle:NSLocalizedString(@"About Spidercal", @"") action:@selector(showAbout:) keyEquivalent:@"" atIndex:i++];
     [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
     [optMenu insertItemWithTitle:NSLocalizedString(@"Go to Date…", @"") action:@selector(showDatePickerPopover:) keyEquivalent:@"T" atIndex:i++];
     [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
@@ -403,11 +568,13 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
     [optMenu insertItemWithTitle:NSLocalizedString(@"Help…", @"") action:@selector(navigateToHelp:) keyEquivalent:@"" atIndex:i++];
     [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Quit Itsycal", @"") action:@selector(terminate:) keyEquivalent:@"q" atIndex:i++];
+    [optMenu insertItemWithTitle:NSLocalizedString(@"Quit Spidercal", @"") action:@selector(terminate:) keyEquivalent:@"q" atIndex:i++];
 
     // Never show menu item images, whatever the system configuration.
     for (NSMenuItem *item in optMenu.itemArray) {
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
         item.preferredImageVisibility = NSMenuItemImageVisibilityHidden;
+#endif
     }
 
     NSPoint pt = NSOffsetRect(_btnOpt.frame, -5, -10).origin;
@@ -465,7 +632,6 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
 - (void)showAbout:(id)sender
 {
     [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
-    [_newEventPopover close];
     [self.prefsVC showAbout];
     [self.prefsWC showWindow:self];
 }
@@ -473,14 +639,8 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
 - (void)showPrefs:(id)sender
 {
     [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
-    [_newEventPopover close];
     [self.prefsVC showPrefs];
     [self.prefsWC showWindow:self];
-}
-
-- (void)checkForUpdates:(id)sender
-{
-    [[SUUpdater sharedUpdater] checkForUpdates:self];
 }
 
 - (void)openDateAndTimePrefs:(id)sender
@@ -563,12 +723,14 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     item = [menu addItemWithTitle:NSLocalizedString(@"Date & Time…", @"") action:@selector(openDateAndTimePrefs:) keyEquivalent:@""];
     item.target = self;
     [menu addItem:[NSMenuItem separatorItem]];
-    item = [menu addItemWithTitle:NSLocalizedString(@"Quit Itsycal", @"") action:@selector(terminate:) keyEquivalent:@""];
+    item = [menu addItemWithTitle:NSLocalizedString(@"Quit Spidercal", @"") action:@selector(terminate:) keyEquivalent:@""];
     item.target = NSApp;
 
     // Never show menu item images, whatever the system configuration.
     for (NSMenuItem *item in menu.itemArray) {
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
         item.preferredImageVisibility = NSMenuItemImageVisibilityHidden;
+#endif
     }
 
     return menu;
@@ -665,7 +827,7 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
 
 - (void)updateMenubarIcon
 {
-    NSString *accessibilityTitle = @"Itsycal";
+    NSString *accessibilityTitle = @"Spidercal";
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     BOOL hideIcon = [defaults boolForKey:kHideIcon];
     if (hideIcon) {
@@ -1006,15 +1168,16 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     [self positionItsycalWindowForInitialPresentation:YES];
     [_agendaVC scrollToTop];
     [self.itsycalWindow makeKeyAndOrderFront:self];
-    [self.itsycalWindow makeFirstResponder:_moCal];
+    [self attachAgendaHandle];
+    [self focusForWindowOpening];
     _inactiveTime = 0;
 }
 
 - (void)hideItsycalWindow
 {
     [_tooltips hideImmediately];
+    [_quickVC dismissSuggestions];
     [self.itsycalWindow orderOut:self];
-    [_newEventPopover close];
     _inactiveTime = MonotonicClockTime();
 }
 
@@ -1036,12 +1199,6 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     }
 }
 
-- (void)popoverDidClose:(NSNotification *)notification
-{
-    if (notification.object == _newEventPopover) {
-        _newEventPopover = nil;
-    }
-}
 
 - (void)keyboardShortcutActivated
 {
@@ -1149,7 +1306,65 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
 
 - (CGFloat)agendaMaxPossibleHeight
 {
-    return NSHeight(_screenFrame) - NSHeight(_moCal.frame) - 140;
+    // Spidercal: the agenda is a scrolling list, not as tall as its
+    // events: about a dozen lines, or what the user dragged it to.
+    CGFloat preferred = _agendaHeightLimit > 0 ? _agendaHeightLimit : SizePref.fontSize * 18;
+    return MAX(MIN([self agendaScreenLimit], preferred), [self agendaMinimumHeight]);
+}
+
+- (CGFloat)agendaScreenLimit
+{
+    return NSHeight(_screenFrame) - NSHeight(_moCal.frame) - _quickVC.view.fittingSize.height - 140;
+}
+
+- (CGFloat)agendaMinimumHeight
+{
+    // A day's heading and one event.
+    return SizePref.fontSize * 5;
+}
+
+- (void)agendaHandleDragBegan
+{
+    _agendaDragStartHeight = NSHeight(_agendaVC.view.frame);
+}
+
+- (void)agendaHandleDraggedBy:(CGFloat)delta
+{
+    _agendaHeightLimit = MAX(MIN(_agendaDragStartHeight + delta, [self agendaScreenLimit]), [self agendaMinimumHeight]);
+    [_agendaVC.view setNeedsLayout:YES];
+}
+
+- (void)agendaHandleDragEnded
+{
+#ifdef DEBUG
+    // Test runs must not change the installed app's settings.
+    if (NSProcessInfo.processInfo.environment[@"SPIDERCAL_SNAPSHOT"]) return;
+#endif
+    [[NSUserDefaults standardUserDefaults] setDouble:_agendaHeightLimit forKey:kAgendaHeight];
+}
+
+- (void)agendaHandleDoubleClicked
+{
+    // Back to the default height.
+    _agendaHeightLimit = 0;
+#ifdef DEBUG
+    if (NSProcessInfo.processInfo.environment[@"SPIDERCAL_SNAPSHOT"]) {
+        [_agendaVC.view setNeedsLayout:YES];
+        return;
+    }
+#endif
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:kAgendaHeight];
+    [_agendaVC.view setNeedsLayout:YES];
+}
+
+// No agenda, nothing to drag.
+- (void)updateWindowBottom
+{
+    // The agenda runs to the edge; without one, leave a margin
+    // under the buttons. The no-results line has its own.
+    BOOL hasAgenda = _agendaVC.events.count > 0;
+    _agendaHandle.hidden = !hasAgenda;
+    _agendaBottom.constant = (hasAgenda || !_noResults.hidden) ? 1 : -kWindowBottomMargin;
 }
 
 #pragma mark -
@@ -1267,6 +1482,9 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     days = MIN(MAX(days, 0), 9); // days is in range 0..9
     // days == 8 really means 14; 9 really means 31
     if (days == 8) days = 14; else if (days == 9) days = 31;
+    // Spidercal: the agenda scrolls, so list a good stretch of
+    // days. The setting still hides the agenda when it is 0.
+    if (days > 0) days = MAX(days, 60);
     return days;
 }
 
@@ -1280,6 +1498,12 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
 // Otherwise (a new date, a setting) start from the top.
 - (void)updateAgendaKeepingScrollPosition:(BOOL)keepScrollPosition
 {
+    if (_searchQuery != nil) {
+        // The agenda is showing search results. Search again, as
+        // the events may have changed.
+        [self quickEntrySearchChanged:_searchQuery];
+        return;
+    }
     NSInteger days = [self daysToShowInAgenda];
     NSArray *datesAndEvents = [self datesAndEventsForDate:_moCal.selectedDate days:days];
     _agendaVC.events = [[self overdueRowsForAgendaDays:days] arrayByAddingObjectsFromArray:datesAndEvents];
@@ -1289,6 +1513,7 @@ static NSArray<NSString *> *ObservedDefaultsKeys(void)
     else {
         [_agendaVC reloadData];
     }
+    [self updateWindowBottom];
     [self showMeetingIndicatorIfNecessary];
 }
 
