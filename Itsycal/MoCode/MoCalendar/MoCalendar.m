@@ -9,6 +9,7 @@
 #import "MoCalendar.h"
 #import "MoCalCell.h"
 #import "MoCalGrid.h"
+#import "MoCalEvents.h"
 #import "MoButton.h"
 #import "MoVFLHelper.h"
 #import "MoCalResizeHandle.h"
@@ -18,6 +19,30 @@
 
 NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 
+@interface MoCalendar ()
+- (void)drawMonthOutline;
+@end
+
+// Draws the current month's outline over _eventsView's events and
+// under the dates. It has the calendar's frame.
+@interface MoCalOutlineView : NSView
+@property (nonatomic, weak) MoCalendar *calendar;
+@end
+
+@implementation MoCalOutlineView
+
+- (NSView *)hitTest:(NSPoint)point
+{
+    return nil; // clicks are the calendar's
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    [self.calendar drawMonthOutline];
+}
+
+@end
+
 @implementation MoCalendar
 {
     NSDateFormatter *_formatter;
@@ -25,6 +50,8 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     MoCalGrid *_dateGrid;
     MoCalGrid *_weekGrid;
     MoCalGrid *_dowGrid;
+    MoCalEventsView *_eventsView; // Lines and Details, under _dateGrid
+    MoCalOutlineView *_outlineView; // over _eventsView
     MoButton *_btnPrev, *_btnNext, *_btnToday;
     NSLayoutConstraint *_weeksConstraint;
     __weak MoCalCell *_hoveredCell;
@@ -87,11 +114,20 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     NSInteger numRows = [[NSUserDefaults standardUserDefaults] integerForKey:kMoCalendarNumRows];
     numRows = MIN(MAX(numRows, 6), 10);
     
-    _dateGrid = [[MoCalGrid alloc] initWithRows:numRows columns:7 horizontalMargin:6 verticalMargin:6];
-    _weekGrid = [[MoCalGrid alloc] initWithRows:numRows columns:1 horizontalMargin:0 verticalMargin:6];
-    _dowGrid  = [[MoCalGrid alloc] initWithRows:1 columns:7 horizontalMargin:6 verticalMargin:0];
+    _dateGrid = [[MoCalGrid alloc] initWithKind:MoCalGridKindDates rows:numRows columns:7 horizontalMargin:6 verticalMargin:6];
+    _weekGrid = [[MoCalGrid alloc] initWithKind:MoCalGridKindWeeks rows:numRows columns:1 horizontalMargin:0 verticalMargin:6];
+    _dowGrid  = [[MoCalGrid alloc] initWithKind:MoCalGridKindDOWs rows:1 columns:7 horizontalMargin:6 verticalMargin:0];
+
+    _eventsView = [MoCalEventsView new];
+    _eventsView.grid = _dateGrid;
+    _eventsView.translatesAutoresizingMaskIntoConstraints = NO;
+
+    _outlineView = [MoCalOutlineView new];
+    _outlineView.calendar = self;
+    _outlineView.translatesAutoresizingMaskIntoConstraints = NO;
 
     for (MoCalCell *cell in _dowGrid.cells) {
+        cell.isDayOfWeek = YES;
         cell.textField.font = [NSFont systemFontOfSize:SizePref.fontSize weight:NSFontWeightSemibold];
     }
 
@@ -100,6 +136,8 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     [_resizeHandle dim:YES];
 
     [self addSubview:_monthLabel];
+    [self addSubview:_eventsView];
+    [self addSubview:_outlineView];
     [self addSubview:_dateGrid];
     [self addSubview:_weekGrid];
     [self addSubview:_dowGrid];
@@ -113,6 +151,17 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     [vfl :@"V:|-(-1)-[_monthLabel]-7-[_dowGrid]-(-6)-[_dateGrid]-5-|"];
     [vfl :@"V:[_weekGrid]-5-|"];
     [vfl :@"V:[_resizeHandle(8)]|"];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [_eventsView.leadingAnchor constraintEqualToAnchor:_dateGrid.leadingAnchor],
+        [_eventsView.trailingAnchor constraintEqualToAnchor:_dateGrid.trailingAnchor],
+        [_eventsView.topAnchor constraintEqualToAnchor:_dateGrid.topAnchor],
+        [_eventsView.bottomAnchor constraintEqualToAnchor:_dateGrid.bottomAnchor],
+        [_outlineView.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+        [_outlineView.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+        [_outlineView.topAnchor constraintEqualToAnchor:self.topAnchor],
+        [_outlineView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
+    ]];
 
     _weeksConstraint = [NSLayoutConstraint constraintWithItem:_weekGrid attribute:NSLayoutAttributeRight relatedBy:NSLayoutRelationEqual toItem:self attribute:NSLayoutAttributeLeft multiplier:1 constant:2];
     [self addConstraint:_weeksConstraint];
@@ -390,10 +439,24 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 
 - (void)reloadData
 {
-    for (MoCalCell *c in _dateGrid.cells) {
-        c.dotColors = self.showEventDots
-            ? [self.delegate dotColorsForDate:c.date useColor:self.useColoredDots]
-            : nil;
+    CalendarStyle style = SizePref.calendarStyle;
+    if (!self.showEventDots ||
+        style == CalendarStyleDots ||
+        ![self.delegate respondsToSelector:@selector(eventsFromDate:toDate:useColor:)]) {
+        _eventsView.layout = nil;
+        for (MoCalCell *c in _dateGrid.cells) {
+            c.dotColors = self.showEventDots
+                ? [self.delegate dotColorsForDate:c.date useColor:self.useColoredDots]
+                : nil;
+        }
+    }
+    else {
+        // Lines and Details: _eventsView draws the events, dots too.
+        NSArray *events = [self.delegate eventsFromDate:self.firstDate toDate:self.lastDate useColor:self.useColoredDots];
+        for (MoCalCell *c in _dateGrid.cells) {
+            c.dotColors = nil;
+        }
+        _eventsView.layout = [[MoCalEventLayout alloc] initWithEvents:events firstDate:self.firstDate rows:_dateGrid.rows];
     }
     // The events changed.
     [self.tooltipController reloadContent];
@@ -434,6 +497,10 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 {
     _monthLabel.font = [NSFont systemFontOfSize:SizePref.calendarTitleFontSize weight:NSFontWeightSemibold];
     _weeksConstraint.constant = self.showWeeks ? SizePref.cellSize : 2;
+    // The calendar style may have changed too, and the events' layout
+    // depends on the cells' size.
+    [self reloadData];
+    [self setNeedsDisplay:YES];
 }
 
 #pragma mark -
@@ -513,7 +580,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
 
 - (void)mouseDown:(NSEvent *)theEvent
 {
-    CGFloat sz = SizePref.cellSize;
+    CGFloat sz = SizePref.dateCellHeight;
     NSPoint initialDragPoint = [self convertPoint:[theEvent locationInWindow] fromView:nil];
     BOOL isDragging = NSPointInRect(initialDragPoint, _resizeHandle.frame);
 
@@ -813,7 +880,7 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
     NSRectFill(self.bounds);
     
     CGFloat radius = SizePref.cellRadius + 3;
-    CGFloat sz = SizePref.cellSize;
+    CGFloat sz = SizePref.dateCellWidth;
     if (self.highlightedDOWs) {
         NSRect weekendRect = [self convertRect:[_dateGrid cellsRect] fromView:_dateGrid];
         weekendRect.size.width = sz;
@@ -846,14 +913,24 @@ NSString * const kMoCalendarNumRows = @"MoCalendarNumRows";
         [[_highlightColor colorWithAlphaComponent:0.36] setFill];
         [highlightPath fill];
     }
+    // The month's outline is _outlineView's, over the events.
+}
 
-    if (!self.doNotDrawOutlineAroundCurrentMonth) {
-        NSBezierPath *outlinePath = [self bezierPathWithStartCell:_monthStartCell endCell:_monthEndCell radius:radius inset:0 useRects:NO];
+- (void)setNeedsDisplay:(BOOL)needsDisplay
+{
+    [super setNeedsDisplay:needsDisplay];
+    if (needsDisplay) [_outlineView setNeedsDisplay:YES];
+}
 
-        [Theme.currentMonthOutlineColor set];
-        [outlinePath setLineWidth:1.5];
-        [outlinePath stroke];
-    }
+// In _outlineView, which has the same coordinates as the calendar.
+- (void)drawMonthOutline
+{
+    if (self.doNotDrawOutlineAroundCurrentMonth || !_monthStartCell || !_monthEndCell) return;
+    CGFloat radius = SizePref.cellRadius + 3;
+    NSBezierPath *outlinePath = [self bezierPathWithStartCell:_monthStartCell endCell:_monthEndCell radius:radius inset:0 useRects:NO];
+    [Theme.currentMonthOutlineColor set];
+    [outlinePath setLineWidth:1.5];
+    [outlinePath stroke];
 }
 
 - (NSBezierPath *)bezierPathWithStartCell:(MoCalCell *)startCell endCell:(MoCalCell *)endCell radius:(CGFloat)r inset:(CGFloat)inset useRects:(BOOL)useRects

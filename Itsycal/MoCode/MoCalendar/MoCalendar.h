@@ -10,6 +10,7 @@
 #import "MoDate.h"
 
 @class TooltipController;
+@class MoCalEvent;
 @protocol TooltipContent;
 
 // A bit mask for days-of-the-week.
@@ -56,10 +57,11 @@ typedef NS_OPTIONS(NSInteger, DOWMask) {
 // Is the week of the year column showing?
 @property (nonatomic) BOOL showWeeks;
 
-// Should calendar show dots under days with events?
+// Should calendar show days' events? How depends on the size
+// preference's calendarStyle (Sizer.h): dots, lines or titles.
 @property (nonatomic) BOOL showEventDots;
 
-// Should event dots use calendar colors?
+// Should events' dots (lines, titles) use calendar colors?
 @property (nonatomic) BOOL useColoredDots;
 
 // DOW colums to highlight
@@ -103,6 +105,13 @@ typedef NS_OPTIONS(NSInteger, DOWMask) {
 
 // The tooltip for a day, or nil if the day has no events.
 - (id<TooltipContent>)tooltipContentForDate:(MoDate)date;
+
+@optional
+
+// For the Lines and Details styles: the events on the days from
+// firstDate to lastDate, each once, with a day's events in the order
+// the agenda lists them. Without useColor, their color is nil.
+- (NSArray<MoCalEvent *> *)eventsFromDate:(MoDate)firstDate toDate:(MoDate)lastDate useColor:(BOOL)useColor;
 
 @end
 

@@ -25,6 +25,7 @@
 #import "PrefsEventsVC.h"
 #import "PrefsAboutVC.h"
 #import "MoButton.h"
+#import "MoCalEvents.h"
 #import "MoPopover.h"
 #import "MoVFLHelper.h"
 #import "MoUtils.h"
@@ -1406,6 +1407,51 @@ static const CGFloat kWindowBottomMargin = 8;
         case 3: return @[colors[0], colors[1], colors[2]];
         default: return nil;
     }
+}
+
+- (NSArray<MoCalEvent *> *)eventsFromDate:(MoDate)firstDate toDate:(MoDate)lastDate useColor:(BOOL)useColor
+{
+    // An event over several days is listed on each of them, and
+    // events fetched separately can be separate objects, so tell them
+    // apart by their identifier and start.
+    NSMutableArray<MoCalEvent *> *events = [NSMutableArray new];
+    NSMutableSet *seen = [NSMutableSet new];
+    for (MoDate date = firstDate; CompareDates(date, lastDate) <= 0; date = AddDaysToDate(1, date)) {
+        for (EventInfo *info in [self eventsForDate:date]) {
+            MoCalEvent *calEvent = [MoCalEvent new];
+            id key;
+            if (info.event) {
+                EKEvent *event = info.event;
+                key = @[event.eventIdentifier ?: [NSValue valueWithNonretainedObject:event],
+                        @(event.startDate.timeIntervalSinceReferenceDate)];
+                // An event ending at midnight (or an all-day event's
+                // 23:59:59) ends on the day before.
+                NSDate *end = event.endDate;
+                if ([end compare:event.startDate] == NSOrderedDescending) {
+                    end = [end dateByAddingTimeInterval:-1];
+                }
+                calEvent.startDate = MakeDateWithNSDate(event.startDate, _nsCal);
+                calEvent.endDate = MakeDateWithNSDate(end, _nsCal);
+                calEvent.hasTime = !event.isAllDay;
+            }
+            else if (info.reminder) {
+                key = @[info.reminder.calendarItemIdentifier ?: [NSValue valueWithNonretainedObject:info.reminder],
+                        @(date.julian)];
+                calEvent.startDate = date;
+                calEvent.endDate = date;
+                calEvent.hasTime = !info.isAllDay;
+            }
+            else {
+                continue;
+            }
+            if ([seen containsObject:key]) continue;
+            [seen addObject:key];
+            calEvent.title = info.item.title ?: @"";
+            calEvent.color = useColor ? info.item.calendar.color : nil;
+            [events addObject:calEvent];
+        }
+    }
+    return events;
 }
 
 #pragma mark - Events

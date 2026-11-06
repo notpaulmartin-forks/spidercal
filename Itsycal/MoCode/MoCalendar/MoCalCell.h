@@ -19,6 +19,10 @@
 @property (nonatomic) BOOL isHovered;
 @property (nonatomic) BOOL isSelected;
 
+// A day of the week's name over the dates, rather than a date or a
+// week number. Its text doesn't move down for the Details style.
+@property (nonatomic) BOOL isDayOfWeek;
+
 // An array of up to 3 colors.
 // - Nil means do not draw a dot.
 // - An empty array means draw a single dot in the default theme color.

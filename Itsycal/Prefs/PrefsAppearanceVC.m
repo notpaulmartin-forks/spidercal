@@ -158,12 +158,24 @@
 
     // Calendar checkboxes
     NSButton *outlineMonth = chkbx(NSLocalizedString(@"Outline current month", @""));
-    NSButton *showEventDots = chkbx(NSLocalizedString(@"Show event dots", @""));
-    NSButton *useColoredDots = chkbx(NSLocalizedString(@"Use colored dots", @""));
+    NSButton *showEventDots = chkbx(NSLocalizedString(@"Show events as", @"Checkbox before the popup with Dots, Lines and Details"));
+    NSButton *useColoredDots = chkbx(NSLocalizedString(@"Use calendar colors", @""));
+
+    // How the calendar shows events. Popup indexes are CalendarStyle values.
+    NSPopUpButton *eventStyle = [NSPopUpButton new];
+    eventStyle.translatesAutoresizingMaskIntoConstraints = NO;
+    [eventStyle addItemsWithTitles:@[NSLocalizedString(@"Dots", @"Calendar style: dots under a date"),
+                                     NSLocalizedString(@"Lines", @"Calendar style: lines for all-day and multi-day events"),
+                                     NSLocalizedString(@"Details", @"Calendar style: events' titles")]];
+    eventStyle.itemArray[0].toolTip = NSLocalizedString(@"Up to three dots under a date with events.", @"");
+    eventStyle.itemArray[1].toolTip = NSLocalizedString(@"A line for each all-day event, across the days of one that lasts several days, and dots for events at a time.", @"");
+    eventStyle.itemArray[2].toolTip = NSLocalizedString(@"Each event's title. The calendar gets bigger.", @"");
+    [eventStyle.cell setAccessibilityTitleUIElement:showEventDots.cell];
+    [v addSubview:eventStyle];
     NSButton *showWeeks = chkbx(NSLocalizedString(@"Show calendar weeks", @""));
 
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20, @"mm": @40} views:NSDictionaryOfVariableBindings(themePopup, sizePicker, menubarLabel, calendarLabel, separator0, separator1, iconPicker, showMonth, showDayOfWeek, _dateTimeFormat, helpButton, _hideIcon, firstDayLabel, firstDayPopup, highlight, showWeeks, outlineMonth, showEventDots, useColoredDots)];
-    [vfl :@"V:|-m-[themePopup]-m-[menubarLabel]-10-[iconPicker]-[showMonth]-[showDayOfWeek]-[_dateTimeFormat]-[_hideIcon]-m-[calendarLabel]-10-[firstDayPopup]-m-[highlight]-m-[outlineMonth]-[showEventDots]-[useColoredDots]-[showWeeks]-m-|"];
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20, @"mm": @40} views:NSDictionaryOfVariableBindings(themePopup, sizePicker, menubarLabel, calendarLabel, separator0, separator1, iconPicker, showMonth, showDayOfWeek, _dateTimeFormat, helpButton, _hideIcon, firstDayLabel, firstDayPopup, highlight, showWeeks, outlineMonth, showEventDots, eventStyle, useColoredDots)];
+    [vfl :@"V:|-m-[themePopup]-m-[menubarLabel]-10-[iconPicker]-[showMonth]-[showDayOfWeek]-[_dateTimeFormat]-[_hideIcon]-m-[calendarLabel]-10-[firstDayPopup]-m-[highlight]-m-[outlineMonth]-12-[showEventDots]-12-[useColoredDots]-[showWeeks]-m-|"];
     [vfl :@"H:|-m-[themePopup]-(>=mm)-[sizePicker]-m-|" :NSLayoutFormatAlignAllCenterY];
     [vfl :@"H:|-m-[menubarLabel]-[separator0]-m-|" :NSLayoutFormatAlignAllCenterY];
     [vfl :@"H:|-m-[calendarLabel]-[separator1]-m-|" :NSLayoutFormatAlignAllCenterY];
@@ -175,7 +187,7 @@
     [vfl :@"H:|-m-[firstDayLabel]-[firstDayPopup]-(>=m)-|" :NSLayoutFormatAlignAllFirstBaseline];
     [vfl :@"H:|-m-[highlight]-(>=m)-|"];
     [vfl :@"H:|-m-[outlineMonth]-(>=m)-|"];
-    [vfl :@"H:|-m-[showEventDots]-(>=m)-|"];
+    [vfl :@"H:|-m-[showEventDots]-[eventStyle]-(>=m)-|" :NSLayoutFormatAlignAllFirstBaseline];
     [vfl :@"H:|-mm-[useColoredDots]-(>=m)-|"];
     [vfl :@"H:|-m-[showWeeks]-(>=m)-|"];
 
@@ -218,6 +230,10 @@
     // Bindings for useColoredDots preference
     [useColoredDots bind:@"value" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kUseColoredDots] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
     [useColoredDots bind:@"enabled" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowEventDots] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+
+    // Bindings for the calendar style
+    [eventStyle bind:@"selectedIndex" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kCalendarEventStyle] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    [eventStyle bind:@"enabled" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowEventDots] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
 
     // Bindings for showWeeks preference
     [showWeeks bind:@"value" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowWeeks] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];

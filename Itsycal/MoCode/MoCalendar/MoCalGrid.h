@@ -11,12 +11,19 @@
 
 @class MoCalCell;
 
+// What the grid's cells show, which sets their size (see Sizer).
+typedef NS_ENUM(NSInteger, MoCalGridKind) {
+    MoCalGridKindDates, // dateCellWidth x dateCellHeight
+    MoCalGridKindWeeks, // cellSize wide, as tall as the dates
+    MoCalGridKindDOWs,  // as wide as the dates, cellSize tall
+};
+
 @interface MoCalGrid : NSView
 
 @property (nonatomic, readonly) NSArray<MoCalCell *> *cells;
 @property (nonatomic, readonly) NSUInteger rows;
 
-- (instancetype)initWithRows:(NSUInteger)rows columns:(NSUInteger)cols horizontalMargin:(NSUInteger)hMargin verticalMargin:(NSUInteger)vMargin;
+- (instancetype)initWithKind:(MoCalGridKind)kind rows:(NSUInteger)rows columns:(NSUInteger)cols horizontalMargin:(NSUInteger)hMargin verticalMargin:(NSUInteger)vMargin;
 
 //
 // Add a new row of cells to the bottom of the grid.

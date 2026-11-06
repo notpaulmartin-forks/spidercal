@@ -11,6 +11,15 @@
 #import "Itsycal.h"
 #import "ItsycalWindow.h"
 #import "ViewController.h"
+
+#ifdef DEBUG
+#import "PrefsVC.h"
+
+// For the snapshot hook, which opens a Settings tab.
+@interface PrefsVC (Testing)
+- (void)selectTabAtIndex:(NSInteger)index;
+@end
+#endif
 #import "Themer.h"
 #import "Sizer.h"
 #import "MoUtils.h"
@@ -41,6 +50,7 @@
         kShowDayOfWeekInIcon:  @(NO),
         kShowEventDots:        @(YES),
         kUseColoredDots:       @(YES),
+        kCalendarEventStyle:   @(CalendarStyleDots),
         kThemePreference:      @0, // System=0, Light=1, Dark=2
         kHideIcon:             @(NO),
         kShowLocation:         @(NO),
@@ -81,6 +91,12 @@
     NSInteger sizePref = [defaults integerForKey:kSizePreference];
     if (sizePref < SizePreferenceSmall || sizePref > SizePreferenceLarge) {
         [defaults setInteger:SizePreferenceSmall forKey:kSizePreference];
+    }
+
+    // Set kCalendarEventStyle to dots in the unlikely case it's invalid.
+    NSInteger calendarStyle = [defaults integerForKey:kCalendarEventStyle];
+    if (calendarStyle < CalendarStyleDots || calendarStyle > CalendarStyleDetails) {
+        [defaults setInteger:CalendarStyleDots forKey:kCalendarEventStyle];
     }
 
     // Set kWindowPosition to below menu bar icon in the unlikely case it's invalid.
@@ -131,6 +147,9 @@
     // must be made BEFORE the window is created because sizes are
     // used when initializing views.
     [SizePref bind:@"sizePreference" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kSizePreference] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    // The calendar's cells are bigger for some styles of showing events.
+    [SizePref bind:@"showsEventsInCalendar" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kShowEventDots] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    [SizePref bind:@"calendarEventStyle" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kCalendarEventStyle] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
 
     // The window's contentView draws the window, so put the view
     // controller's view inside it rather than setting the window's
@@ -226,6 +245,15 @@
             }
             if (env[@"SPIDERCAL_PREFS"]) {
                 [self->_vc performSelector:@selector(showPrefs:) withObject:nil];
+                // SPIDERCAL_PREFS=<tab index> also saves the Settings
+                // window next to the snapshot, as <name>-prefs.png.
+                NSInteger tab = [env[@"SPIDERCAL_PREFS"] integerValue];
+                if (tab > 0) [(PrefsVC *)[self->_vc valueForKey:@"prefsVC"] selectTabAtIndex:tab];
+            }
+            if (env[@"SPIDERCAL_SET_STYLE"]) {
+                // Change the calendar style as the Settings popup does,
+                // with the window open. (It's saved: delete it after.)
+                [[NSUserDefaultsController sharedUserDefaultsController].values setValue:@([env[@"SPIDERCAL_SET_STYLE"] integerValue]) forKey:kCalendarEventStyle];
             }
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 NSView *contentView = window.contentView;
@@ -242,6 +270,13 @@
                 CGContextScaleCTM(context, scale, scale);
                 [contentView.layer renderInContext:context];
                 [[rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:path atomically:YES];
+                if (env[@"SPIDERCAL_PREFS"]) {
+                    NSView *prefs = [[self->_vc valueForKey:@"prefsVC"] view];
+                    NSBitmapImageRep *prefsRep = [prefs bitmapImageRepForCachingDisplayInRect:prefs.bounds];
+                    [prefs cacheDisplayInRect:prefs.bounds toBitmapImageRep:prefsRep];
+                    NSString *prefsPath = [[path stringByDeletingPathExtension] stringByAppendingString:@"-prefs.png"];
+                    [[prefsRep representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:prefsPath atomically:YES];
+                }
                 NSLog(@"snapshot %@ window=%@ firstResponder=%@ caretHidden=%@ text=[%@]", path, NSStringFromRect(window.frame), window.firstResponder.className,
                       [window.firstResponder respondsToSelector:@selector(caretHidden)] ? [(id)window.firstResponder valueForKey:@"caretHidden"] : @"n/a",
                       [window.firstResponder isKindOfClass:[NSTextView class]] ? ((NSTextView *)window.firstResponder).string : @"");

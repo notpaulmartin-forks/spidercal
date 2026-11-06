@@ -193,6 +193,20 @@ static BOOL FixtureEnabled(void) {
         @[@11, @9,  @0,  @30,  @"Health", @"Call dentist about invoice", @""],
         @[@13, @14, @0,  @60,  @"Work",   @"Quarterly review", @"Room 4.12"],
         @[@19, @19, @0,  @90,  @"Clubs & Societies", @"Book club", @""],
+        // Further from today, for the month view's Lines and Details:
+        // trips over several days, one across two weeks, and a busy day.
+        @[@-5, @-1, @0,  @1,   @"Clubs & Societies", @"Choir concert", @""],
+        @[@-4, @-1, @0,  @4,   @"Work",   @"Conference in Lisbon", @""],
+        @[@-3, @9,  @30, @15,  @"Work",   @"Team standup", @""],
+        @[@-1, @18, @0,  @90,  @"Clubs & Societies", @"Pottery class", @""],
+        @[@9,  @-1, @0,  @1,   @"Home",   @"Car service", @""],
+        @[@11, @12, @30, @60,  @"Work",   @"Team lunch", @""],
+        @[@11, @15, @0,  @30,  @"Work",   @"1:1 with Priya", @""],
+        @[@11, @18, @30, @60,  @"Health", @"Yoga", @""],
+        @[@14, @-1, @0,  @6,   @"Home",   @"Holiday in the mountains", @""],
+        @[@15, @8,  @10, @120, @"Home",   @"Flight to Geneva", @""],
+        @[@20, @-1, @0,  @1,   @"Home",   @"Anniversary", @""],
+        @[@22, @13, @0,  @45,  @"Health", @"Haircut", @""],
     ];
     NSCalendar *cal = _cal;
     NSDate *today = [cal startOfDayForDate:[NSDate new]];
@@ -208,8 +222,9 @@ static BOOL FixtureEnabled(void) {
         else if ([spec[6] length]) event.location = spec[6];
         event.allDay = allDay;
         if (allDay) {
+            // As EventKit has it: 23:59:59 on the last day.
             event.startDate = day;
-            event.endDate = [cal dateByAddingUnit:NSCalendarUnitDay value:[spec[3] integerValue] - 1 toDate:day options:0];
+            event.endDate = [[cal dateByAddingUnit:NSCalendarUnitDay value:[spec[3] integerValue] toDate:day options:0] dateByAddingTimeInterval:-1];
         }
         else {
             event.startDate = [cal dateBySettingHour:[spec[1] integerValue] minute:[spec[2] integerValue] second:0 ofDate:day options:0];

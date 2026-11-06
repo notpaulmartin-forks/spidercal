@@ -39,6 +39,37 @@ Sizer *SizePref = nil;
     });
 }
 
+- (void)setShowsEventsInCalendar:(BOOL)showsEventsInCalendar {
+    CalendarStyle old = self.calendarStyle;
+    _showsEventsInCalendar = showsEventsInCalendar;
+    [self calendarStyleMayHaveChangedFrom:old];
+}
+
+- (void)setCalendarEventStyle:(NSInteger)calendarEventStyle {
+    CalendarStyle old = self.calendarStyle;
+    _calendarEventStyle = calendarEventStyle;
+    [self calendarStyleMayHaveChangedFrom:old];
+}
+
+- (CalendarStyle)calendarStyle {
+    if (!self.showsEventsInCalendar) return CalendarStyleDots;
+    switch (self.calendarEventStyle) {
+        case CalendarStyleLines:   return CalendarStyleLines;
+        case CalendarStyleDetails: return CalendarStyleDetails;
+        default:                   return CalendarStyleDots;
+    }
+}
+
+- (void)calendarStyleMayHaveChangedFrom:(CalendarStyle)old {
+    // The cells change size, as they do for a new size preference.
+    if (self.calendarStyle != old) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[NSNotificationCenter defaultCenter]
+             postNotificationName:kSizeDidChangeNotification object:nil];
+        });
+    }
+}
+
 - (CGFloat)fontSize {
     return SML_MED_LRG(FONT_SIZE_SMALL, FONT_SIZE_MEDIUM, FONT_SIZE_LARGE);
 }
@@ -54,8 +85,53 @@ Sizer *SizePref = nil;
     return SML_MED_LRG(27, 30, 34);
 }
 
+- (CGFloat)dateCellWidth {
+    switch (self.calendarStyle) {
+        case CalendarStyleDetails: return SML_MED_LRG(42, 48, 56);
+        default:                   return self.cellSize;
+    }
+}
+
+- (CGFloat)dateCellHeight {
+    CGFloat lanes = self.calendarLaneTop + self.calendarLaneCount * self.calendarLaneHeight
+                  + (self.calendarLaneCount - 1) * self.calendarLaneGap;
+    switch (self.calendarStyle) {
+        // The dots for events at a time go under a day's lines.
+        case CalendarStyleLines:   return ceil(lanes + self.calendarLaneGap + 1.5 + self.cellDotWidth + 3);
+        // Room under the last lane, above the line to the next week.
+        case CalendarStyleDetails: return ceil(lanes + 5);
+        default:                   return self.cellSize;
+    }
+}
+
+- (NSInteger)calendarLaneCount {
+    return 3;
+}
+
+- (CGFloat)calendarLaneTop {
+    // Just under the date.
+    return self.calendarStyle == CalendarStyleDetails ? SML_MED_LRG(20, 22, 24) : SML_MED_LRG(17, 19, 21);
+}
+
+- (CGFloat)calendarLaneHeight {
+    return self.calendarStyle == CalendarStyleDetails ? SML_MED_LRG(12, 14, 16) : SML_MED_LRG(2.5, 3, 3.5);
+}
+
+- (CGFloat)calendarLaneGap {
+    return self.calendarStyle == CalendarStyleDetails ? 2 : SML_MED_LRG(1.5, 2, 2);
+}
+
+- (CGFloat)calendarEventFontSize {
+    return self.calendarStyle == CalendarStyleDetails ? SML_MED_LRG(10, 11, 13) : self.fontSize - 1;
+}
+
 - (CGFloat)cellTextFieldVerticalSpace {
     return SML_MED_LRG(2, 2, 2);
+}
+
+- (CGFloat)dateCellTextFieldVerticalSpace {
+    // Details: clear of the line to the week above.
+    return self.calendarStyle == CalendarStyleDetails ? 4 : self.cellTextFieldVerticalSpace;
 }
 
 - (CGFloat)cellDotWidth {
