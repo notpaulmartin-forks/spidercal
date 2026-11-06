@@ -33,6 +33,8 @@
 "Add URL" = "添加 URL";
 "Alert:" = "警告：";
 "All-day:" = "全天：";
+/* Under the app's name in Settings › About */
+"An unofficial fork of Itsycal" = "Itsycal 的非官方分支";
 /* Appearance prefs tab label */
 "Appearance" = "外观";
 "Are you sure you want to delete this event?" = "你确定要删除此事件吗？";
@@ -62,7 +64,8 @@ Spidercal is more useful when it can display events from your calendars. You can
 "Delete Only This Event" = "仅删除此事件";
 "Delete This Event" = "删除此事件";
 "Do you want to delete this and all future occurrences of this event, or only the selected occurrence?" = "要删除此事件以及将来发生的事件，还是只删除所选的事件？";
-"Donate" = "捐";
+/* Link in Settings › About */
+"Donate to Itsycal's developer" = "向 Itsycal 的开发者捐款";
 "End Repeat:" = "结束重复：";
 "Ends:" = "结束时间：";
 "Event List" = "事件列表";
@@ -79,14 +82,14 @@ Spidercal is more useful when it can display events from your calendars. You can
 /* Accessibility description for menu bar icon with the date in a filled square */
 "Filled date" = "实心日期";
 "First day of week:" = "星期开始于：";
-"Follow" = "Follow";
 "Friday" = "星期五";
 /* General prefs tab label */
 "General" = "通用";
 "Go to date" = "前往日期";
-"Help" = "帮助";
 "Hide icon" = "隐藏图标";
 "Highlight:" = "高亮：";
+/* Link to the original app's website in Settings › About */
+"Itsycal by Mowglii" = "Mowglii 出品的 Itsycal";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "除非有至少一个有权限修改的日历，否则 Spidercal 无法创建新事件。";
 /* Accessibility description for menu bar icon showing the Spidercal face */
 "Spidercal face" = "Spidercal 笑脸";
@@ -164,6 +167,8 @@ Please quit Spidercal, move it to the Applications folder, and relaunch." = "必
 "Small" = "小";
 /* The space bar's name in a tooltip's keyboard shortcut, e.g. the Today button's */
 "Space" = "空格";
+/* Link in Settings › About */
+"Spidercal on GitHub" = "GitHub 上的 Spidercal";
 "Starts:" = "开始：";
 "Sunday" = "星期天";
 /* System theme name */

@@ -33,6 +33,8 @@
 "Add URL" = "Agregar URL";
 "Alert:" = "Aviso:";
 "All-day:" = "Todo el día:";
+/* Under the app's name in Settings › About */
+"An unofficial fork of Itsycal" = "Un fork no oficial de Itsycal";
 /* Appearance prefs tab label */
 "Appearance" = "Apariencia";
 "Are you sure you want to delete this event?" = "¿Seguro que quieres eliminar este evento?";
@@ -62,7 +64,8 @@ Spidercal es más útil cuando puede mostrar los eventos de sus calendarios. Pue
 "Delete Only This Event" = "Eliminar solo este evento";
 "Delete This Event" = "Eliminar";
 "Do you want to delete this and all future occurrences of this event, or only the selected occurrence?" = "¿Desea eliminar este evento y todas sus repeticiones futuras o bien solo la aparición seleccionada?";
-"Donate" = "Donar";
+/* Link in Settings › About */
+"Donate to Itsycal's developer" = "Donar al desarrollador de Itsycal";
 "End Repeat:" = "Terminar:";
 "Ends:" = "Termina:";
 "Event List" = "Lista de eventos";
@@ -79,14 +82,14 @@ Spidercal es más útil cuando puede mostrar los eventos de sus calendarios. Pue
 /* Accessibility description for menu bar icon with the date in a filled square */
 "Filled date" = "Fecha con relleno";
 "First day of week:" = "Primer día de la semana:";
-"Follow" = "Sigue a";
 "Friday" = "Viernes";
 /* General prefs tab label */
 "General" = "General";
 "Go to date" = "Ir a la fecha";
-"Help" = "Ayuda";
 "Hide icon" = "Ocultar icono";
 "Highlight:" = "Resaltar:";
+/* Link to the original app's website in Settings › About */
+"Itsycal by Mowglii" = "Itsycal de Mowglii";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "Spidercal no puede crear un nuevo evento si no hay al menos un calendario con permisos para ser modificado.";
 /* Accessibility description for menu bar icon showing the Spidercal face */
 "Spidercal face" = "Cara de Spidercal";
@@ -164,6 +167,8 @@ Por favor, cerrar Spidercal, trasladar a la carpeta Aplicaciones, y volver a arr
 "Small" = "Pequeño";
 /* The space bar's name in a tooltip's keyboard shortcut, e.g. the Today button's */
 "Space" = "Espacio";
+/* Link in Settings › About */
+"Spidercal on GitHub" = "Spidercal en GitHub";
 "Starts:" = "Empieza:";
 "Sunday" = "Domingo";
 /* System theme name */

@@ -52,7 +52,7 @@
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Spidercal can display your reminders alongside your events. You can change this setting in System Settings › Privacy &amp; Security › Reminders</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2012 − 2026 mowglii.com</string>
+	<string>An unofficial fork of Itsycal. Itsycal © 2012 − 2026 Sanjay Madan</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

@@ -33,6 +33,8 @@
 "Add URL" = "URL 추가";
 "Alert:" = "알림:";
 "All-day:" = "종일:";
+/* Under the app's name in Settings › About */
+"An unofficial fork of Itsycal" = "Itsycal의 비공식 포크";
 /* Appearance prefs tab label */
 "Appearance" = "모양";
 "Are you sure you want to delete this event?" = "이 이벤트를 삭제할까요?";
@@ -62,7 +64,8 @@ Spidercal은 캘린더 이벤트를 보여줄 수 있을 때 더 유용해요.";
 "Delete Only This Event" = "이 이벤트만 삭제";
 "Delete This Event" = "이 이벤트 삭제";
 "Do you want to delete this and all future occurrences of this event, or only the selected occurrence?" = "이 이벤트만 삭제할까요? 아니면 앞으로 반복되는 일정까지 모두 삭제할까요?";
-"Donate" = "후원";
+/* Link in Settings › About */
+"Donate to Itsycal's developer" = "Itsycal 개발자에게 기부하기";
 "End Repeat:" = "반복 종료:";
 "Ends:" = "종료:";
 "Event List" = "이벤트 목록";
@@ -79,14 +82,14 @@ Spidercal은 캘린더 이벤트를 보여줄 수 있을 때 더 유용해요.";
 /* Accessibility description for menu bar icon with the date in a filled square */
 "Filled date" = "채워진 날짜";
 "First day of week:" = "한 주의 시작:";
-"Follow" = "팔로우";
 "Friday" = "금요일";
 /* General prefs tab label */
 "General" = "일반";
 "Go to date" = "날짜로 이동";
-"Help" = "도움말";
 "Hide icon" = "아이콘 숨기기";
 "Highlight:" = "강조:";
+/* Link to the original app's website in Settings › About */
+"Itsycal by Mowglii" = "Mowglii의 Itsycal";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "새 이벤트를 만들려면 수정할 수 있는 캘린더가 하나 이상 필요해요.";
 /* Accessibility description for menu bar icon showing the Spidercal face */
 "Spidercal face" = "Spidercal 얼굴";
@@ -164,6 +167,8 @@ Spidercal을 종료한 뒤 응용 프로그램 폴더로 옮기고 다시 열어
 "Small" = "작게";
 /* The space bar's name in a tooltip's keyboard shortcut, e.g. the Today button's */
 "Space" = "스페이스";
+/* Link in Settings › About */
+"Spidercal on GitHub" = "GitHub의 Spidercal";
 "Starts:" = "시작:";
 "Sunday" = "일요일";
 /* System theme name */

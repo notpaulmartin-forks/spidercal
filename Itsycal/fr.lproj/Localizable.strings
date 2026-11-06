@@ -33,6 +33,8 @@
 "Add URL" = "Ajouter un lien";
 "Alert:" = "Alerte :";
 "All-day:" = "Jour entier :";
+/* Under the app's name in Settings › About */
+"An unofficial fork of Itsycal" = "Un fork non officiel d’Itsycal";
 /* Appearance prefs tab label */
 "Appearance" = "Apparence";
 "Are you sure you want to delete this event?" = "Êtes-vous sûr de vouloir supprimer cet événement ?";
@@ -62,7 +64,8 @@ Spidercal est plus utile quand il peut afficher les événements de vos calendri
 "Delete Only This Event" = "Seulement cette occurrence";
 "Delete This Event" = "Supprimer";
 "Do you want to delete this and all future occurrences of this event, or only the selected occurrence?" = "Souhaitez-vous supprimer cet événement ainsi que toutes ses occurrences futures ou uniquement celle sélectionnée ?";
-"Donate" = "Faire un don";
+/* Link in Settings › About */
+"Donate to Itsycal's developer" = "Faire un don au développeur d’Itsycal";
 "End Repeat:" = "Fin de la récurrence :";
 "Ends:" = "Se termine :";
 "Event List" = "Liste des événements";
@@ -79,14 +82,14 @@ Spidercal est plus utile quand il peut afficher les événements de vos calendri
 /* Accessibility description for menu bar icon with the date in a filled square */
 "Filled date" = "Date sur fond plein";
 "First day of week:" = "Premier jour de la semaine :";
-"Follow" = "Suivez";
 "Friday" = "vendredi";
 /* General prefs tab label */
 "General" = "Général";
 "Go to date" = "Aller à la date…";
-"Help" = "Aide";
 "Hide icon" = "Masquer l'icône";
 "Highlight:" = "Mettre en évidence :";
+/* Link to the original app's website in Settings › About */
+"Itsycal by Mowglii" = "Itsycal par Mowglii";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "Spidercal ne peut pas créer de nouvel événement si vous ne possédez pas au moins un calendrier avec la permission de modification.";
 /* Accessibility description for menu bar icon showing the Spidercal face */
 "Spidercal face" = "Visage d'Spidercal";
@@ -164,6 +167,8 @@ S'il vous plaît quitter Spidercal, le déplacer dans le dossier Applications, e
 "Small" = "Petite";
 /* The space bar's name in a tooltip's keyboard shortcut, e.g. the Today button's */
 "Space" = "Espace";
+/* Link in Settings › About */
+"Spidercal on GitHub" = "Spidercal sur GitHub";
 "Starts:" = "Commence :";
 "Sunday" = "dimanche";
 /* System theme name */

@@ -48,7 +48,7 @@ ditto build/Build/Products/Release/Spidercal.app /Applications/Spidercal.app
 open /Applications/Spidercal.app
 ```
 
-The Xcode project and source folder are still named Itsycal, to keep merging from upstream simple. The Help links still point to Itsycal's site.
+The Xcode project and source folder are still named Itsycal, to keep merging from upstream simple. The Help button in the alert that asks you to move the app to Applications still opens Itsycal's site.
 
 # Original Itsycal README
 
