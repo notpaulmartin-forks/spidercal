@@ -34,7 +34,7 @@ Do this only when asked. A release is public.
    - `lipo -archs` on the app shows `x86_64 arm64`.
    - `codesign --verify --deep --strict` passes.
    - `codesign -d --entitlements - --xml` doesn't list `get-task-allow`.
-   - `strings -a` on the app's binary finds no local paths or personal details (`/Users/`, the username, the email address).
+   - `strings -a` on the app's binary finds no local paths or personal details (`/Users/`, the username, the email address). The owner's name is meant to be there: it's in the copyright in Settings › About and `Info.plist`, as in `LICENSE.txt`.
 5. Publish it:
 
    ```bash

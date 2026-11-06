@@ -65,18 +65,22 @@
     [emojiItsycal.cell setAccessibilityElement:NO];
     [emojiDonate.cell setAccessibilityElement:NO];
 
-    // Itsycal's copyright, as in its licence (LICENSE.txt).
+    // The copyrights, as in the licence (LICENSE.txt): Itsycal's,
+    // and the fork's for its changes.
     NSTextField *copyright = label(@"Itsycal © 2012—2026 Sanjay Madan", NO);
     copyright.textColor = [NSColor secondaryLabelColor];
+    NSTextField *forkCopyright = label(@"Spidercal © 2026 Paul Martin", NO);
+    forkCopyright.textColor = [NSColor secondaryLabelColor];
 
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:box metrics:@{@"m": @25} views:NSDictionaryOfVariableBindings(appName, version, fork, github, emojiGitHub, itsycal, emojiItsycal, donate, emojiDonate, copyright)];
-    [vfl :@"V:|[appName]-4-[fork]-m-[github]-10-[itsycal]-10-[donate]-m-[copyright]|"];
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:box metrics:@{@"m": @25} views:NSDictionaryOfVariableBindings(appName, version, fork, github, emojiGitHub, itsycal, emojiItsycal, donate, emojiDonate, copyright, forkCopyright)];
+    [vfl :@"V:|[appName]-4-[fork]-m-[github]-10-[itsycal]-10-[donate]-m-[copyright]-4-[forkCopyright]|"];
     [vfl :@"H:|[appName]-4-[version]-(>=0)-|" :NSLayoutFormatAlignAllBaseline];
     [vfl :@"H:|[fork]-(>=0)-|"];
     [vfl :@"H:|[emojiGitHub]-6-[github]-(>=0)-|" :NSLayoutFormatAlignAllBaseline];
     [vfl :@"H:|[emojiItsycal]-6-[itsycal]-(>=0)-|" :NSLayoutFormatAlignAllBaseline];
     [vfl :@"H:|[emojiDonate]-6-[donate]-(>=0)-|" :NSLayoutFormatAlignAllBaseline];
     [vfl :@"H:|[copyright]-(>=0)-|"];
+    [vfl :@"H:|[forkCopyright]-(>=0)-|"];
 
     MoVFLHelper *outer = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @25} views:NSDictionaryOfVariableBindings(box)];
     [outer :@"V:|-m-[box]-m-|"];
