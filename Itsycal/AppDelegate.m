@@ -19,6 +19,12 @@
 @interface PrefsVC (Testing)
 - (void)selectTabAtIndex:(NSInteger)index;
 @end
+
+// For the snapshot hook, which opens an event's details.
+#import "AgendaViewController.h"
+@interface AgendaViewController (Testing)
+- (void)showPopoverForRow:(NSInteger)row;
+@end
 #endif
 #import "Themer.h"
 #import "Sizer.h"
@@ -186,6 +192,8 @@
 // SPIDERCAL_LOCATION into its location field) or SPIDERCAL_SEARCH
 // into the Search field, save a picture of the window and quit.
 // SPIDERCAL_FIXTURE=1 uses sample events (see EventCenter.m).
+// SPIDERCAL_AGENDA_ROW=<row> opens the details of the agenda's
+// event in that row.
 // Theme and size: pass -ThemePreference 0|1|2 -SizePreference 0|1|2.
 - (void)snapshotForTestingIfRequested
 {
@@ -221,6 +229,9 @@
                     NSTextView *editor = (NSTextView *)location.currentEditor;
                     [editor insertText:env[@"SPIDERCAL_LOCATION"] replacementRange:NSMakeRange(NSNotFound, 0)];
                 }
+            }
+            if (env[@"SPIDERCAL_AGENDA_ROW"]) {
+                [(AgendaViewController *)[self->_vc valueForKey:@"_agendaVC"] showPopoverForRow:[env[@"SPIDERCAL_AGENDA_ROW"] integerValue]];
             }
             if (env[@"SPIDERCAL_DRAG"] || env[@"SPIDERCAL_DOUBLECLICK"]) {
                 // Drive the agenda's handle with real mouse events.

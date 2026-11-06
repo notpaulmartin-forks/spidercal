@@ -94,6 +94,13 @@ Themer *Theme = nil;
     return NSColor.systemRedColor;
 }
 
+- (NSColor *)agendaSelectedColor {
+    // A tint of the accent color, as for a selection, so it doesn't
+    // look like the gray of a hovered row.
+    return LightDarkColor([NSColor.controlAccentColor colorWithAlphaComponent:0.18],
+                          [NSColor.controlAccentColor colorWithAlphaComponent:0.35]);
+}
+
 - (NSColor *)buttonTintColor {
     return LightDarkColor([NSColor colorWithWhite:0.45 alpha:1], [NSColor colorWithWhite:0.55 alpha:1]);
 }

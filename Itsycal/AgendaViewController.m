@@ -30,6 +30,10 @@ static const CGFloat kReminderFillGap = 1;
 
 @interface AgendaRowView : NSTableRowView
 @property (nonatomic) BOOL isHovered;
+@property (nonatomic) BOOL isShowingDetails; // its event's popover is open
+@end
+
+@interface AgendaViewController () <NSPopoverDelegate>
 @end
 
 @interface AgendaDateCell : NSView
@@ -77,11 +81,14 @@ static const CGFloat kAgendaBottomInset = 6;
 {
     NSPopover *_popover;
     EventInfo *_popoverEventInfo; // event shown in _popover
+    NSInteger _popoverRow; // its row, or -1 when _popover is closed
     BOOL _flashScrollers; // after the next layout, if the agenda scrolls
 }
 
 - (void)loadView
 {
+    _popoverRow = -1;
+
     // View controller content view
     NSView *v = [NSView new];
 
@@ -333,6 +340,7 @@ static const CGFloat kAgendaBottomInset = 6;
         };
         _popover = [MoPopover new];
         _popover.contentViewController = popoverVC;
+        _popover.delegate = self;
         _popover.behavior = NSPopoverBehaviorTransient;
         _popover.animates = NO;
         // Enable coloring the full background including the arrow.
@@ -359,6 +367,26 @@ static const CGFloat kAgendaBottomInset = 6;
     [popoverVC.view layoutSubtreeIfNeeded];
     [_popover setContentSize:popoverVC.size];
     [popoverVC popoverDidShow];
+    [self setPopoverRow:row];
+}
+
+// The row whose event the popover shows has a background, so it's
+// clear which event the details are for.
+- (void)setPopoverRow:(NSInteger)row
+{
+    _popoverRow = row;
+    [_tv enumerateAvailableRowViewsUsingBlock:^(NSTableRowView *rowView, NSInteger r) {
+        if ([rowView isKindOfClass:[AgendaRowView class]]) {
+            ((AgendaRowView *)rowView).isShowingDetails = (r == row);
+        }
+    }];
+}
+
+- (void)popoverDidClose:(NSNotification *)notification
+{
+    // Clicking another event closes the popover and then shows it
+    // for that event, which may happen first.
+    if (!_popover.isShown) [self setPopoverRow:-1];
 }
 
 - (void)showPopover:(id)sender
@@ -416,6 +444,7 @@ static const CGFloat kAgendaBottomInset = 6;
         rowView.identifier = @"RowView";
     }
     rowView.isHovered = tableView.hoverRow == row;
+    rowView.isShowingDetails = row == _popoverRow;
     return rowView;
 }
 
@@ -843,8 +872,11 @@ static const CGFloat kAgendaBottomInset = 6;
 @implementation AgendaRowView
 
 - (void)drawBackgroundInRect:(NSRect)dirtyRect {
-    if (self.isHovered) {
-        [Theme.agendaHoverColor set];
+    NSColor *color = self.isShowingDetails ? Theme.agendaSelectedColor
+                   : self.isHovered ? Theme.agendaHoverColor
+                   : nil;
+    if (color) {
+        [color set];
         NSRect rect = NSInsetRect(self.bounds, 8, 1);
         [[NSBezierPath bezierPathWithRoundedRect:rect xRadius:5 yRadius:5] fill];
     }
@@ -853,6 +885,13 @@ static const CGFloat kAgendaBottomInset = 6;
 - (void)setIsHovered:(BOOL)isHovered {
     if (_isHovered != isHovered) {
         _isHovered = isHovered;
+        [self setNeedsDisplay:YES];
+    }
+}
+
+- (void)setIsShowingDetails:(BOOL)isShowingDetails {
+    if (_isShowingDetails != isShowingDetails) {
+        _isShowingDetails = isShowingDetails;
         [self setNeedsDisplay:YES];
     }
 }
