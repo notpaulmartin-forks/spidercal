@@ -69,7 +69,7 @@
     // and the fork's for its changes.
     NSTextField *copyright = label(@"Itsycal © 2012—2026 Sanjay Madan", NO);
     copyright.textColor = [NSColor secondaryLabelColor];
-    NSTextField *forkCopyright = label(@"Spidercal © 2026 Paul Martin", NO);
+    NSTextField *forkCopyright = label(@"Spidercal changes © 2026 Paul Martin", NO);
     forkCopyright.textColor = [NSColor secondaryLabelColor];
 
     MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:box metrics:@{@"m": @25} views:NSDictionaryOfVariableBindings(appName, version, fork, github, emojiGitHub, itsycal, emojiItsycal, donate, emojiDonate, copyright, forkCopyright)];
