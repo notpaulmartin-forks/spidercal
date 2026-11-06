@@ -4,14 +4,14 @@ Forked from [Itsycal](https://github.com/sfsam/Itsycal)
 
 <table>
   <tr>
-    <td align="center" valign="top" width="33%">Calendar and agenda<br><img src="docs/screenshots/overview.png" alt="The calendar and a scrolling agenda, with the New Event and Search fields above them" width="260"></td>
-    <td align="center" valign="top" width="33%">Type an event in plain language<br><img src="docs/screenshots/quick-add.png" alt="An event typed in natural language, with the understood parts tinted and a summary below" width="260"></td>
-    <td align="center" valign="top" width="33%">Place suggestions as you type<br><img src="docs/screenshots/places.png" alt="Place suggestions floating over the window while typing a location" width="260"></td>
+    <td align="center" valign="top">Calendar and agenda<br><img src="docs/screenshots/overview.png" alt="The calendar and a scrolling agenda, with the New Event and Search fields above them" width="216"></td>
+    <td align="center" valign="top">Events as lines<br><img src="docs/screenshots/calendar-lines.png" alt="The calendar with a line under the dates of each all-day event, across the days of the ones that last several days, and dots for events at a time" width="216"></td>
+    <td align="center" valign="top">Event titles in the calendar<br><img src="docs/screenshots/calendar-details.png" alt="A wider calendar with each event's title written in its day and faint lines between the weeks" width="317"></td>
   </tr>
   <tr>
-    <td align="center" valign="top">Full details, inline<br><img src="docs/screenshots/details.png" alt="The full event form open inside the window" width="260"></td>
-    <td align="center" valign="top">Search your events<br><img src="docs/screenshots/search.png" alt="Search results replacing the agenda" width="260"></td>
-    <td align="center" valign="top">Dark mode<br><img src="docs/screenshots/dark.png" alt="The same window in dark mode" width="260"></td>
+    <td align="center" valign="top">Type an event in plain language<br><img src="docs/screenshots/quick-add.png" alt="An event typed in natural language, with the understood parts tinted and a summary below" width="216"></td>
+    <td align="center" valign="top">Place suggestions as you type<br><img src="docs/screenshots/places.png" alt="Place suggestions floating over the window while typing a location" width="216"></td>
+    <td align="center" valign="top">Search your events<br><img src="docs/screenshots/search.png" alt="Search results replacing the agenda" width="216"></td>
   </tr>
 </table>
 
@@ -20,6 +20,7 @@ Forked from [Itsycal](https://github.com/sfsam/Itsycal)
 - Place suggestions while typing `at <place>` or filling in the location field. They use Apple's MapKit, so the place text you type is sent to Apple. Nothing is sent until you type a place.
 - Search events by title, location or notes across the next 12 months. The New Event and Search fields swap places with a click, or with ⌘N and ⌘F.
 - The full event form opens inline in the window instead of in a popover.
+- Three ways to show events in the calendar, under Settings → Appearance → Show events as: Dots, as in Itsycal; Lines, with a line across the days of each all-day or multi-day event; and Details, with each event's title in its day.
 - The agenda is a scrolling list. Drag the window's bottom edge to make it taller or shorter, and double-click the edge to reset it.
 - Slightly wider calendar, and spacing and type sizes that follow the size setting throughout.
 - Removed the Sparkle auto-updater, which checked Itsycal's update feed. To update, download the latest release or rebuild from source.
