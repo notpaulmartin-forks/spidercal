@@ -388,12 +388,20 @@ static const CGFloat kSwapDuration = 0.18;
     NSStackView *buttons = [NSStackView stackViewWithViews:@[_btnExpand, _btnCalendar, spacer, _btnSave]];
     buttons.orientation = NSUserInterfaceLayoutOrientationHorizontal;
     buttons.spacing = 6;
+    // As tall as the buttons. The spacer has no height of its own.
+    [buttons setHuggingPriority:NSLayoutPriorityRequired - 1 forOrientation:NSLayoutConstraintOrientationVertical];
 
     NSStackView *summaryStack = [NSStackView stackViewWithViews:@[_sumTitle, _sumLocation, _sumDate, buttons]];
     summaryStack.orientation = NSUserInterfaceLayoutOrientationVertical;
     summaryStack.alignment = NSLayoutAttributeLeading;
     summaryStack.spacing = 2;
     [summaryStack setCustomSpacing:6 afterView:_sumDate];
+    // As tall as its lines, like the stack it's in (see below). When
+    // a tall calendar leaves the agenda only the room the screen has,
+    // the agenda gets shorter as the summary appears, and the summary
+    // would otherwise stretch to hold the window's height, leaving a
+    // gap under the buttons.
+    [summaryStack setHuggingPriority:NSLayoutPriorityRequired - 1 forOrientation:NSLayoutConstraintOrientationVertical];
     summaryStack.translatesAutoresizingMaskIntoConstraints = NO;
     _summary = [NSView new];
     _summary.translatesAutoresizingMaskIntoConstraints = NO;
