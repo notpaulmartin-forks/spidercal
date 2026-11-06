@@ -26,7 +26,6 @@
 "15 minutes before" = "15분 전";
 "30 minutes before" = "30분 전";
 "31 days" = "31일";
-"About Spidercal" = "Spidercal 정보";
 /* About prefs tab label */
 "About" = "정보";
 "Add Location or Video Call" = "위치 또는 화상 통화 추가";
@@ -84,10 +83,8 @@ Spidercal은 캘린더 이벤트를 보여줄 수 있을 때 더 유용해요.";
 "Friday" = "금요일";
 /* General prefs tab label */
 "General" = "일반";
-"Go to Date…" = "날짜로 이동…";
 "Go to date" = "날짜로 이동";
 "Help" = "도움말";
-"Help…" = "도움말…";
 "Hide icon" = "아이콘 숨기기";
 "Highlight:" = "강조:";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "새 이벤트를 만들려면 수정할 수 있는 캘린더가 하나 이상 필요해요.";
@@ -130,7 +127,6 @@ Spidercal을 종료한 뒤 응용 프로그램 폴더로 옮기고 다시 열어
 "On Date" = "날짜 지정";
 "On day of event (9 AM)" = "이벤트 당일 (오전 9시)";
 "Open Calendar" = "캘린더 열기";
-"Options" = "옵션";
 "Outline current month" = "현재 월 외곽선 표시";
 /* Accessibility description for menu bar icon with the date in an outlined square */
 "Outlined date" = "윤곽선 날짜";
@@ -147,6 +143,8 @@ Spidercal을 종료한 뒤 응용 프로그램 폴더로 옮기고 다시 열어
 "Repeat:" = "반복:";
 "Saturday" = "토요일";
 "Save Event" = "이벤트 저장하기";
+/* Tooltip for the button that opens Settings */
+"Settings" = "설정";
 "Settings…" = "설정…";
 "Show calendar weeks" = "캘린더 주차 표시";
 "Show completed reminders" = "완료된 미리 알림 표시";

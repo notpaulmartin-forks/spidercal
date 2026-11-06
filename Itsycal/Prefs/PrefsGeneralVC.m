@@ -63,8 +63,14 @@
     [positionPopup.cell setAccessibilityTitleUIElement:positionLabel.cell];
     [v addSubview:positionPopup];
 
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_login, beepBeep, shortcutLabel, shortcutView, positionLabel, positionPopup)];
-    [vfl :@"V:|-m-[_login]-[beepBeep]-m-[shortcutLabel]-3-[shortcutView(25)]-30-[positionPopup]-m-|"];
+    // Spidercal: quitting is here rather than in a menu under the
+    // window's gear button, which now opens Settings. (⌘Q works too.)
+    NSButton *quit = [NSButton buttonWithTitle:NSLocalizedString(@"Quit Spidercal", @"") target:NSApp action:@selector(terminate:)];
+    [v addSubview:quit];
+
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_login, beepBeep, shortcutLabel, shortcutView, positionLabel, positionPopup, quit)];
+    [vfl :@"V:|-m-[_login]-[beepBeep]-m-[shortcutLabel]-3-[shortcutView(25)]-30-[positionPopup]-30-[quit]-m-|"];
+    [vfl :@"H:|-m-[quit]-(>=m)-|"];
     [vfl :@"H:|-m-[_login]-(>=m)-|"];
     [vfl :@"H:|-m-[beepBeep]-(>=m)-|"];
     [vfl :@"H:|-(>=m)-[shortcutLabel]-(>=m)-|"];

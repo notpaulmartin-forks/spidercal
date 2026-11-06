@@ -26,7 +26,6 @@
 "15 minutes before" = "15 minuti prima";
 "30 minutes before" = "30 minuti prima";
 "31 days" = "31 giorni";
-"About Spidercal" = "Informazioni su Spidercal";
 /* About prefs tab label */
 "About" = "Informazioni";
 "Add Location or Video Call" = "Aggiungi luogo o videochiamata";
@@ -84,10 +83,8 @@ Spidercal è più utile quando è in grado di visualizzare eventi dai calendari.
 "Friday" = "Venerdì";
 /* General prefs tab label */
 "General" = "Generali";
-"Go to Date…" = "Vai alla data…";
 "Go to date" = "Vai alla data";
 "Help" = "Aiuto";
-"Help…" = "Aiuto…";
 "Hide icon" = "Nascondi l'icona";
 "Highlight:" = "Evidenzia:";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "Spidercal non può creare un nuovo evento se non c'è almeno un calendario che hai il permesso di modificare.";
@@ -130,7 +127,6 @@ Si prega di esci da Spidercal, spostarlo nella cartella Applicazioni, e riavvia.
 "On Date" = "In data";
 "On day of event (9 AM)" = "Il giorno dell'evento (9:00)";
 "Open Calendar" = "Apri l'applicazione Calendario";
-"Options" = "Opzioni";
 "Outline current month" = "Contorna il mese corrente";
 /* Accessibility description for menu bar icon with the date in an outlined square */
 "Outlined date" = "Data con contorno";
@@ -147,6 +143,8 @@ Si prega di esci da Spidercal, spostarlo nella cartella Applicazioni, e riavvia.
 "Repeat:" = "Ripetizione:";
 "Saturday" = "Sabato";
 "Save Event" = "Salvare Evento";
+/* Tooltip for the button that opens Settings */
+"Settings" = "Impostazioni";
 "Settings…" = "Impostazioni…";
 "Show calendar weeks" = "Mostra le settimane del calendario";
 "Show completed reminders" = "Mostra promemoria completati";

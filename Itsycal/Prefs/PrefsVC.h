@@ -7,9 +7,6 @@
 
 @interface PrefsVC : NSViewController <NSToolbarDelegate>
 
-// Show About panel.
-- (void)showAbout;
-
 // Show General panel if About panel is showing.
 - (void)showPrefs;
 

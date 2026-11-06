@@ -65,11 +65,6 @@
     }
 }
 
-- (void)showAbout
-{
-    [self selectTabAtIndex:[self aboutTabIndex]];
-}
-
 - (void)showPrefs
 {
     if (_selectedItemTag == [self aboutTabIndex]) {

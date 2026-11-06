@@ -26,7 +26,6 @@
 "15 minutes before" = "15 分钟前";
 "30 minutes before" = "30 分钟前";
 "31 days" = "31 天";
-"About Spidercal" = "关于 Spidercal";
 /* About prefs tab label */
 "About" = "关于";
 "Add Location or Video Call" = "添加位置或视频通话";
@@ -84,10 +83,8 @@ Spidercal is more useful when it can display events from your calendars. You can
 "Friday" = "星期五";
 /* General prefs tab label */
 "General" = "通用";
-"Go to Date…" = "前往日期…";
 "Go to date" = "前往日期";
 "Help" = "帮助";
-"Help…" = "帮助…";
 "Hide icon" = "隐藏图标";
 "Highlight:" = "高亮：";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "除非有至少一个有权限修改的日历，否则 Spidercal 无法创建新事件。";
@@ -130,7 +127,6 @@ Please quit Spidercal, move it to the Applications folder, and relaunch." = "必
 "On Date" = "时间到了";
 "On day of event (9 AM)" = "日程发生当天（上午9时）";
 "Open Calendar" = "打开日历";
-"Options" = "选项";
 "Outline current month" = "为当前月份显示轮廓";
 /* Accessibility description for menu bar icon with the date in an outlined square */
 "Outlined date" = "空心日期";
@@ -146,6 +142,8 @@ Please quit Spidercal, move it to the Applications folder, and relaunch." = "必
 "Reminders access denied. You can change this setting in System Settings › Privacy & Security › Reminders" = "提醒事项访问被拒绝。你可以在 “系统设置 › 隐私与安全 › 提醒事项” 中更改此设置。";
 "Repeat:" = "重复：";
 "Saturday" = "星期六";
+/* Tooltip for the button that opens Settings */
+"Settings" = "设置";
 "Settings…" = "设置…";
 "Save Event" = "保存事件";
 "Show calendar weeks" = "显示日历周";

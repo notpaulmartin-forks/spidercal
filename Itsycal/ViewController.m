@@ -145,10 +145,10 @@ static const CGFloat kWindowBottomMargin = 8;
         return btn;
     };
 
-    // Calendar.app and Options buttons. (New events are typed
+    // Calendar.app and Settings buttons. (New events are typed
     // in the field at the top; ⌘N puts the cursor there.)
     _btnCal = btn(@"btnCal", @"o", @selector(showCalendarApp:));
-    _btnOpt = btn(@"btnOpt", @"", @selector(showOptionsMenu:));
+    _btnOpt = btn(@"btnOpt", @"", @selector(showPrefs:));
     _btnPin = btn(@"btnPin", @"p", @selector(pin:));
     _btnPin.keyEquivalentModifierMask = 0;
     _btnPin.alternateImage = [NSImage imageNamed:@"btnPinAlt"];
@@ -159,8 +159,8 @@ static const CGFloat kWindowBottomMargin = 8;
         return NSLocalizedString(@"Open Calendar", @"");
     } shortcut:nil];
     [_tooltips addTooltipToView:_btnOpt label:^NSString *{
-        return NSLocalizedString(@"Options", @"");
-    } shortcut:nil];
+        return NSLocalizedString(@"Settings", @"Tooltip for the button that opens Settings");
+    } shortcut:@"⌘,"]; // handled in -keyDown:
     __weak MoButton *btnPin = _btnPin;
     [_tooltips addTooltipToView:_btnPin label:^NSString *{
         return btnPin.state == NSControlStateValueOn
@@ -555,33 +555,6 @@ static const CGFloat kWindowBottomMargin = 8;
     [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:url]];
 }
 
-- (void)showOptionsMenu:(id)sender
-{
-    NSMenu *optMenu = [[NSMenu alloc] initWithTitle:@"Options Menu"];
-    NSInteger i = 0;
-
-    [optMenu insertItemWithTitle:NSLocalizedString(@"About Spidercal", @"") action:@selector(showAbout:) keyEquivalent:@"" atIndex:i++];
-    [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Go to Date…", @"") action:@selector(showDatePickerPopover:) keyEquivalent:@"T" atIndex:i++];
-    [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Settings…", @"") action:@selector(showPrefs:) keyEquivalent:@"," atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Date & Time…", @"") action:@selector(openDateAndTimePrefs:) keyEquivalent:@"" atIndex:i++];
-    [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Help…", @"") action:@selector(navigateToHelp:) keyEquivalent:@"" atIndex:i++];
-    [optMenu insertItem:[NSMenuItem separatorItem] atIndex:i++];
-    [optMenu insertItemWithTitle:NSLocalizedString(@"Quit Spidercal", @"") action:@selector(terminate:) keyEquivalent:@"q" atIndex:i++];
-
-    // Never show menu item images, whatever the system configuration.
-    for (NSMenuItem *item in optMenu.itemArray) {
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
-        item.preferredImageVisibility = NSMenuItemImageVisibilityHidden;
-#endif
-    }
-
-    NSPoint pt = NSOffsetRect(_btnOpt.frame, -5, -10).origin;
-    [optMenu popUpMenuPositioningItem:nil atLocation:pt inView:self.view];
-}
-
 - (void)pin:(id)sender
 {
     BOOL pin = _btnPin.state == NSControlStateValueOn;
@@ -630,13 +603,6 @@ static const CGFloat kWindowBottomMargin = 8;
     return (PrefsVC *)self.prefsWC.contentViewController;
 }
 
-- (void)showAbout:(id)sender
-{
-    [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
-    [self.prefsVC showAbout];
-    [self.prefsWC showWindow:self];
-}
-
 - (void)showPrefs:(id)sender
 {
     [[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
@@ -647,12 +613,6 @@ static const CGFloat kWindowBottomMargin = 8;
 - (void)openDateAndTimePrefs:(id)sender
 {
     NSURL *url = [NSURL URLWithString:@"x-apple.systempreferences:com.apple.Date-Time-Settings.extension"];
-    [NSWorkspace.sharedWorkspace openURL:url];
-}
-
-- (void)navigateToHelp:(id)sender
-{
-    NSURL *url = [NSURL URLWithString:@"https://www.mowglii.com/itsycal/help.html"];
     [NSWorkspace.sharedWorkspace openURL:url];
 }
 

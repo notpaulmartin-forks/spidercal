@@ -26,7 +26,6 @@
 "15 minutes before" = "15 minut předem";
 "30 minutes before" = "30 minut předem";
 "31 days" = "31 dnů";
-"About Spidercal" = "O aplikaci Spidercal";
 /* About prefs tab label */
 "About" = "O aplikaci";
 "Add Location or Video Call" = "Přidejte místo nebo videohovor";
@@ -84,10 +83,8 @@ Spidercal je užitečnější, pokud může zobrazovat události z vašich kale
 "Friday" = "pátek";
 /* General prefs tab label */
 "General" = "Obecné";
-"Go to Date…" = "Přejít na datum…";
 "Go to date" = "Přejít na datum";
 "Help" = "Nápověda";
-"Help…" = "Nápověda…";
 "Hide icon" = "Skrýt ikonu";
 "Highlight:" = "Zvýraznit:";
 "Spidercal cannot create a new event unless there is at least one calendar you have permission to modify." = "Spidercal nemůže vytvořit novou událost, pokud nemáte oprávnění k úpravám alespoň v jednom kalendáři.";
@@ -130,7 +127,6 @@ Ukončete prosím Spidercal, přesuňte jej do složky „Aplikace“ a znovu j
 "On Date" = "K datu";
 "On day of event (9 AM)" = "V den události (9 AM)";
 "Open Calendar" = "Otevřít kalendář";
-"Options" = "Volby";
 "Outline current month" = "Ohraničit aktuální měsíc";
 /* Accessibility description for menu bar icon with the date in an outlined square */
 "Outlined date" = "Datum s obrysem";
@@ -147,6 +143,8 @@ Ukončete prosím Spidercal, přesuňte jej do složky „Aplikace“ a znovu j
 "Repeat:" = "Opakovat:";
 "Saturday" = "sobota";
 "Save Event" = "Uložit událost";
+/* Tooltip for the button that opens Settings */
+"Settings" = "Nastavení";
 "Settings…" = "Nastavení…";
 "Show calendar weeks" = "Zobrazovat kalendářní týdny";
 "Show completed reminders" = "Zobrazovat vyřízené připomínky";
