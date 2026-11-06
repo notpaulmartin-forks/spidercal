@@ -66,6 +66,9 @@ static NSComparisonResult CompareItemsOnDay(EventInfo *e1, EventInfo *e2); // se
 @end
 typedef EKEvent *(^EventMaker)(EKEventStore *store);
 static EventMaker EventMakerForEvent(EKEvent *event); // see below
+// Puts an event back as it was when EventStateOfEvent() was called.
+typedef void (^EventState)(EKEvent *event);
+static EventState EventStateOfEvent(EKEvent *event); // see below
 
 #ifdef DEBUG
 // Sample data so the UI can be checked without calendar access or
@@ -211,7 +214,6 @@ static BOOL FixtureEnabled(void) {
     NSCalendar *cal = _cal;
     NSDate *today = [cal startOfDayForDate:[NSDate new]];
     NSMutableArray<EKEvent *> *events = [NSMutableArray new];
-    NSMutableDictionary<NSDate *, NSMutableArray *> *byDate = [NSMutableDictionary new];
     for (NSArray *spec in specs) {
         NSDate *day = [cal dateByAddingUnit:NSCalendarUnitDay value:[spec[0] integerValue] toDate:today options:0];
         BOOL allDay = [spec[1] integerValue] < 0;
@@ -231,13 +233,37 @@ static BOOL FixtureEnabled(void) {
             event.endDate = [event.startDate dateByAddingTimeInterval:[spec[3] integerValue] * 60];
         }
         [events addObject:event];
-        NSInteger days = allDay ? [spec[3] integerValue] : 1;
-        for (NSInteger i = 0; i < days; i++) {
-            NSDate *date = [cal dateByAddingUnit:NSCalendarUnitDay value:i toDate:day options:0];
+    }
+    // Details to try changing: an alert, notes, a repeat.
+    for (EKEvent *event in events) {
+        if ([event.title isEqualToString:@"Lunch with Alex"]) {
+            event.alarms = @[[EKAlarm alarmWithRelativeOffset:-3600]];
+        }
+        else if ([event.title isEqualToString:@"Sprint planning"]) {
+            event.notes = @"Bring the roadmap. Board: https://example.com/board";
+        }
+        else if ([event.title isEqualToString:@"Team standup"]) {
+            event.recurrenceRules = @[[[EKRecurrenceRule alloc] initRecurrenceWithFrequency:EKRecurrenceFrequencyWeekly interval:1 end:nil]];
+            event.alarms = @[[EKAlarm alarmWithRelativeOffset:-900], [EKAlarm alarmWithRelativeOffset:0]];
+        }
+    }
+    _fixtureEvents = events;
+    [self _indexFixtureEvents];
+}
+
+// List the sample events under their days, and tell the delegate.
+- (void)_indexFixtureEvents {
+    NSCalendar *cal = _cal;
+    NSMutableDictionary<NSDate *, NSMutableArray *> *byDate = [NSMutableDictionary new];
+    for (EKEvent *event in _fixtureEvents) {
+        NSDate *first = [cal startOfDayForDate:event.startDate];
+        NSDate *last = [cal startOfDayForDate:event.isAllDay ? event.endDate : event.startDate];
+        for (NSDate *date = first; [date compare:last] != NSOrderedDescending;
+             date = [cal dateByAddingUnit:NSCalendarUnitDay value:1 toDate:date options:0]) {
             EventInfo *info = [EventInfo new];
             info.event = event;
             info.date = date;
-            info.isAllDay = allDay;
+            info.isAllDay = event.isAllDay;
             info.meetingURL = MeetingURLForEvent(event);
             info.didCheckMeetingURL = YES;
             if (!byDate[date]) byDate[date] = [NSMutableArray new];
@@ -250,7 +276,6 @@ static BOOL FixtureEnabled(void) {
             return [a.startDate compare:b.startDate];
         }];
     }
-    _fixtureEvents = events;
     _filteredEventsForDate = byDate;
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.delegate eventCenterEventsChanged];
@@ -313,6 +338,40 @@ static BOOL FixtureEnabled(void) {
 
 - (BOOL)removeEvent:(EKEvent *)event span:(EKSpan)span error:(NSError **)error {
     return [_store removeEvent:event span:span commit:YES error:error];
+}
+
+- (BOOL)saveChangesToEvent:(EKEvent *)event span:(EKSpan)span changes:(void (^)(EKEvent *event))changes undoManager:(NSUndoManager *)undoManager error:(NSError **)error {
+    BOOL repeated = event.hasRecurrenceRules;
+    EventState before = EventStateOfEvent(event);
+    changes(event);
+#ifdef DEBUG
+    if (FixtureEnabled()) {
+        // The sample events aren't in the store. Show the change.
+        [self _indexFixtureEvents];
+        [self _registerUndoForChangedEvent:event before:before undoManager:undoManager];
+        return YES;
+    }
+#endif
+    if (![_store saveEvent:event span:span commit:YES error:error]) {
+        [event rollback];
+        return NO;
+    }
+    if (!repeated && !event.hasRecurrenceRules) {
+        [self _registerUndoForChangedEvent:event before:before undoManager:undoManager];
+    }
+    return YES;
+}
+
+- (NSArray<EKCalendar *> *)writableEventCalendars {
+    NSMutableArray<EKCalendar *> *calendars = [NSMutableArray new];
+    for (id obj in [self sourcesAndCalendars]) {
+        if (![obj isKindOfClass:[CalendarInfo class]]) continue;
+        EKCalendar *calendar = ((CalendarInfo *)obj).calendar;
+        if ((calendar.allowedEntityTypes & EKEntityMaskEvent) && calendar.allowsContentModifications) {
+            [calendars addObject:calendar];
+        }
+    }
+    return calendars;
 }
 
 - (void)updateSelectedCalendarsForIdentifier:(NSString *)identifier selected:(BOOL)selected {
@@ -519,6 +578,30 @@ static BOOL FixtureEnabled(void) {
             [ec _registerUndoForNewEvent:copy maker:maker undoManager:weakUndoManager];
         }];
     }];
+}
+
+- (void)_registerUndoForChangedEvent:(EKEvent *)event before:(EventState)before undoManager:(NSUndoManager *)undoManager {
+    if (undoManager == nil) return;
+    NSString *identifier = event.eventIdentifier;
+    NSArray *fingerprint = [self _undoFingerprintForEvent:event];
+    // The sample events have no identifier: keep the event itself.
+    EKEvent *unsaved = identifier ? nil : event;
+    __weak NSUndoManager *weakUndoManager = undoManager;
+    [undoManager registerUndoWithTarget:self handler:^(EventCenter *ec) {
+        // Undo: put the event back as it was, unless it is gone or
+        // has changed since. Saving registers the redo, which puts
+        // it back as it is now.
+        EKEvent *saved = unsaved ?: [ec->_store eventWithIdentifier:identifier];
+        if (saved == nil || ![[ec _undoFingerprintForEvent:saved] isEqual:fingerprint]) {
+            NSBeep();
+            return;
+        }
+        NSError *error = nil;
+        if (![ec saveChangesToEvent:saved span:EKSpanThisEvent changes:before undoManager:weakUndoManager error:&error]) {
+            if (error != nil) [[NSAlert alertWithError:error] runModal];
+        }
+    }];
+    [undoManager setActionName:NSLocalizedString(@"Change Event", @"Undo menu item: undo a change to an event made in its details")];
 }
 
 - (BOOL)setReminder:(EKReminder *)reminder completed:(BOOL)completed undoManager:(NSUndoManager *)undoManager error:(NSError **)error {
@@ -1392,6 +1475,43 @@ static EventMaker EventMakerForEvent(EKEvent *event)
             [copy addAlarm:[EKAlarm alarmWithRelativeOffset:offset.doubleValue]];
         }
         return copy;
+    };
+}
+
+static EventState EventStateOfEvent(EKEvent *event)
+{
+    NSString *title      = event.title;
+    NSString *location   = event.location;
+    NSURL *URL           = event.URL;
+    NSString *notes      = event.notes;
+    EKCalendar *calendar = event.calendar;
+    BOOL allDay          = event.isAllDay;
+    NSDate *startDate    = event.startDate;
+    NSDate *endDate      = event.endDate;
+    NSTimeZone *timeZone = event.timeZone;
+    // Each alarm's date (NSDate) or offset (NSNumber).
+    NSMutableArray *alarms = [NSMutableArray new];
+    for (EKAlarm *alarm in event.alarms) {
+        [alarms addObject:alarm.absoluteDate ?: @(alarm.relativeOffset)];
+    }
+    return ^(EKEvent *e) {
+        e.title     = title;
+        e.location  = location;
+        e.URL       = URL;
+        e.notes     = notes;
+        if (calendar) e.calendar = calendar;
+        e.allDay    = allDay;
+        e.startDate = startDate;
+        e.endDate   = endDate;
+        // timeZone MUST be nil for an all-day event, and set after allDay.
+        e.timeZone  = allDay ? nil : timeZone;
+        NSMutableArray<EKAlarm *> *newAlarms = [NSMutableArray new];
+        for (id alarm in alarms) {
+            [newAlarms addObject:[alarm isKindOfClass:[NSDate class]]
+                ? [EKAlarm alarmWithAbsoluteDate:alarm]
+                : [EKAlarm alarmWithRelativeOffset:[alarm doubleValue]]];
+        }
+        e.alarms = newAlarms;
     };
 }
 

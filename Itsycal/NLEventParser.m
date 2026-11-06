@@ -4,6 +4,7 @@
 //
 
 #import "NLEventParser.h"
+#import "Itsycal.h"
 
 @implementation NLEventDraft
 @end
@@ -136,7 +137,116 @@ static NSRegularExpression *Regex(NSString *pattern)
     return [NSRegularExpression regularExpressionWithPattern:pattern options:NSRegularExpressionCaseInsensitive error:NULL];
 }
 
+// Text folded for comparing: lowercase, without accents or dots.
+static NSString *Folded(NSString *text)
+{
+    NSString *folded = [text stringByFoldingWithOptions:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch locale:nil];
+    return [folded stringByReplacingOccurrencesOfString:@"." withString:@""];
+}
+
+// The month (1-12) a word names, in the user's language or English:
+// the month's name, its short name, or the start of its name that is
+// at least 3 letters long ("nov", "Novem", "mär"). 0 if none.
+static NSInteger MonthForWord(NSString *word)
+{
+    word = Folded(word);
+    if (word.length < 3) return 0;
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    for (NSLocale *locale in @[NSLocale.currentLocale, [NSLocale localeWithLocaleIdentifier:@"en_US"]]) {
+        formatter.locale = locale;
+        NSInteger found = 0;
+        BOOL ambiguous = NO;
+        for (NSArray<NSString *> *names in @[formatter.monthSymbols, formatter.standaloneMonthSymbols,
+                                             formatter.shortMonthSymbols, formatter.shortStandaloneMonthSymbols]) {
+            for (NSUInteger i = 0; i < names.count && i < 12; i++) {
+                NSString *name = Folded(names[i]);
+                if ([name isEqualToString:word]) return i + 1;
+                if ([name hasPrefix:word]) {
+                    if (found && found != (NSInteger)i + 1) ambiguous = YES;
+                    found = i + 1;
+                }
+            }
+        }
+        if (found && !ambiguous) return found;
+    }
+    return 0;
+}
+
 @implementation NLEventParser
+
++ (NSDate *)dateFromTypedString:(NSString *)text near:(NSDate *)near calendar:(NSCalendar *)calendar
+{
+    NSString *s = [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if (s.length == 0) return nil;
+    NSDate *today = [calendar startOfDayForDate:[NSDate new]];
+    NSString *folded = Folded(s);
+    if ([folded isEqualToString:@"today"]) return today;
+    if ([folded isEqualToString:@"tomorrow"]) return [calendar dateByAddingUnit:NSCalendarUnitDay value:1 toDate:today options:0];
+    if ([folded isEqualToString:@"yesterday"]) return [calendar dateByAddingUnit:NSCalendarUnitDay value:-1 toDate:today options:0];
+
+    // A weekday in front, as in "Fri, 6 Nov".
+    NSTextCheckingResult *weekday = [Regex(@"^(\\p{L}+)\\.?,\\s*") firstMatchInString:s options:0 range:NSMakeRange(0, s.length)];
+    if (weekday && MonthForWord([s substringWithRange:[weekday rangeAtIndex:1]]) == 0) {
+        s = [s substringFromIndex:NSMaxRange(weekday.range)];
+    }
+
+    BOOL monthFirst = [[NSUserDefaults standardUserDefaults] integerForKey:kTypedDateOrder] == TypedDateOrderMonthDay;
+    NSRange all = NSMakeRange(0, s.length);
+    NSInteger (^number)(NSTextCheckingResult *, NSUInteger) = ^NSInteger(NSTextCheckingResult *m, NSUInteger group) {
+        NSRange range = [m rangeAtIndex:group];
+        return range.location == NSNotFound ? 0 : [s substringWithRange:range].integerValue;
+    };
+    NSInteger day = 0, month = 0, year = 0; // year 0: none typed
+    NSTextCheckingResult *m;
+    if ((m = [Regex(@"^(\\d{4})-(\\d{1,2})-(\\d{1,2})$") firstMatchInString:s options:0 range:all])) {
+        // 2026-11-09
+        year = number(m, 1); month = number(m, 2); day = number(m, 3);
+    }
+    else if ((m = [Regex(@"^(\\d{1,2})\\s*([./-])\\s*(\\d{1,2})(?:\\s*\\2\\s*(\\d{4}|\\d{2})?)?\\s*\\.?$") firstMatchInString:s options:0 range:all])) {
+        // 9/11, 9.11., 9-11, 9/11/2027, 9.11.27
+        NSInteger first = number(m, 1), second = number(m, 3);
+        day   = monthFirst ? second : first;
+        month = monthFirst ? first : second;
+        year  = number(m, 4);
+    }
+    else if ((m = [Regex(@"^(\\d{1,2})(?:st|nd|rd|th)?\\.?\\s*(?:of\\s+)?(\\p{L}+)\\.?(?:,?\\s*(\\d{4}|\\d{2}))?$") firstMatchInString:s options:0 range:all])) {
+        // 9 Nov, 9. November 2027, 9th of November
+        day = number(m, 1);
+        month = MonthForWord([s substringWithRange:[m rangeAtIndex:2]]);
+        year = number(m, 3);
+    }
+    else if ((m = [Regex(@"^(\\p{L}+)\\.?\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s*(\\d{4}))?$") firstMatchInString:s options:0 range:all])) {
+        // Nov 9, November 9th, 2027
+        month = MonthForWord([s substringWithRange:[m rangeAtIndex:1]]);
+        day = number(m, 2);
+        year = number(m, 3);
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31) return nil;
+    if (year > 0 && year < 100) year += 2000;
+
+    // The day in a year, or nil if that year has no such day (30 Feb).
+    NSDate* (^dayInYear)(NSInteger) = ^NSDate *(NSInteger y) {
+        NSDateComponents *c = [NSDateComponents new];
+        c.year = y; c.month = month; c.day = day;
+        NSDate *date = [calendar dateFromComponents:c];
+        NSDateComponents *check = [calendar components:NSCalendarUnitYear | NSCalendarUnitMonth | NSCalendarUnitDay fromDate:date];
+        return (date && check.year == y && check.month == month && check.day == day) ? date : nil;
+    };
+    if (year > 0) return dayInYear(year);
+
+    // No year: the one nearest to near, or the later one if it's
+    // as near.
+    NSDate *nearDay = [calendar startOfDayForDate:near ?: today];
+    NSInteger nearYear = [calendar component:NSCalendarUnitYear fromDate:nearDay];
+    NSDate *best = nil;
+    for (NSInteger y = nearYear - 1; y <= nearYear + 1; y++) {
+        NSDate *date = dayInYear(y);
+        if (date && (!best || fabs([date timeIntervalSinceDate:nearDay]) <= fabs([best timeIntervalSinceDate:nearDay]))) {
+            best = date;
+        }
+    }
+    return best;
+}
 
 + (NSTimeZone *)timeZoneForName:(NSString *)name
 {
@@ -228,13 +338,37 @@ static NSRegularExpression *Regex(NSString *pattern)
         claim(dm.range);
     }
 
+    // ---- Dates as numbers: "6/11", "6.11.", "6/11/2027". Read day
+    // first or month first as set in Settings, not as the Mac's region
+    // has it, as the detector below would. A dot needs a year or a dot
+    // after it, since "9.30" is a time. Dashes aren't dates here, since
+    // "9-11" is a time too.
+    NSDate *dayDate = nil, *timeDate = nil;
+    BOOL hasExplicitYear = NO;
+    NSRegularExpression *numericDate = Regex(@"(?<![\\d./:])(\\d{1,2})([/.])(\\d{1,2})(?:\\2(\\d{4}|\\d{2}))?(\\.?)(?![\\d/:])");
+    for (NSTextCheckingResult *m in [numericDate matchesInString:mask options:0 range:whole]) {
+        BOOL hasYear = [m rangeAtIndex:4].location != NSNotFound;
+        BOOL isDot = [[mask substringWithRange:[m rangeAtIndex:2]] isEqualToString:@"."];
+        if (isDot && !hasYear && [m rangeAtIndex:5].length == 0) continue;
+        NSRange before = NSMakeRange(0, m.range.location);
+        if (isDot && [Regex(@"\\bat\\s+$") firstMatchInString:mask options:0 range:before]) continue;
+        NSDate *date = [self dateFromTypedString:[mask substringWithRange:m.range] near:now calendar:calendar];
+        if (!date) continue;
+        dayDate = date;
+        hasExplicitYear = hasYear;
+        // Take the "on" in front of it too.
+        NSRange range = m.range;
+        NSTextCheckingResult *prep = [Regex(@"\\bon\\s+$") firstMatchInString:mask options:0 range:before];
+        if (prep) range = NSMakeRange(prep.range.location, NSMaxRange(range) - prep.range.location);
+        claim(range);
+        break;
+    }
+
     // ---- Dates and times
     NSDataDetector *detector = [NSDataDetector dataDetectorWithTypes:NSTextCheckingTypeDate error:NULL];
     // The detector must not see the blanks as text.
     NSString *detectable = [mask stringByReplacingOccurrencesOfString:@"\x01" withString:@" "];
     NSRegularExpression *timeRegex = Regex(@"\\b\\d{1,2}(?:[:.]\\d{2})?\\s*(?:am|pm|a\\.m\\.|p\\.m\\.)|\\b\\d{1,2}:\\d{2}\\b|\\b(?:noon|midnight|morning|afternoon|evening|tonight)\\b");
-    NSDate *dayDate = nil, *timeDate = nil;
-    BOOL hasExplicitYear = NO;
     NSTimeInterval detectedDuration = 0;
     for (NSTextCheckingResult *m in [detector matchesInString:detectable options:0 range:whole]) {
         if (!m.date) continue;

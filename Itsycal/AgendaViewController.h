@@ -7,6 +7,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import <EventKit/EventKit.h>
 #import "MoTableView.h"
 
 @protocol AgendaDelegate;
@@ -49,6 +50,11 @@
 @optional
 - (void)agendaHoveredOverRow:(NSInteger)row;
 - (void)agendaWantsToDeleteEvent:(EKEvent *)event;
+// Make changes to event and save them for span. NO if they couldn't
+// be saved.
+- (BOOL)agendaWantsToSaveChangesToEvent:(EKEvent *)event span:(EKSpan)span changes:(void (^)(EKEvent *event))changes;
+// The calendars an event can be moved to.
+- (NSArray<EKCalendar *> *)agendaWritableEventCalendars;
 - (void)agendaWantsToSetReminder:(EKReminder *)reminder completed:(BOOL)completed;
 - (void)agendaWantsToToggleOverdueSection;
 - (void)agendaShowCalendarAppAtDate:(NSDate *)date;

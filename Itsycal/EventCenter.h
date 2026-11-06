@@ -45,6 +45,18 @@
 
 - (BOOL)removeEvent:(EKEvent *)event span:(EKSpan)span error:(NSError **)error;
 
+// Change an event that is already saved: changes() changes it, and
+// it's saved for span (EKSpanFutureEvents for this and the later
+// occurrences of a repeating event). For an event that doesn't
+// repeat, before or after, registers undo (put it back as it was)
+// and redo with undoManager, which beep if the event has changed
+// since. If it can't be saved, the event is put back as it was.
+- (BOOL)saveChangesToEvent:(EKEvent *)event span:(EKSpan)span changes:(void (^)(EKEvent *event))changes undoManager:(NSUndoManager *)undoManager error:(NSError **)error;
+
+// The calendars an event can be moved to: those whose events can be
+// changed, in the order Settings lists them.
+- (NSArray<EKCalendar *> *)writableEventCalendars;
+
 // Check off or uncheck a reminder and register its undo and redo
 // with undoManager, as Calendar does. Checking off a repeating
 // reminder makes EventKit save a completed copy at its due date and

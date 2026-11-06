@@ -338,6 +338,24 @@ static const CGFloat kAgendaBottomInset = 6;
             if (strongSelf == nil) return;
             [strongSelf deleteEventInfo:strongSelf->_popoverEventInfo];
         };
+        popoverVC.saveHandler = ^BOOL(EKEvent *event, EKSpan span, void (^changes)(EKEvent *)) {
+            id<AgendaDelegate> delegate = weakSelf.delegate;
+            if (![delegate respondsToSelector:@selector(agendaWantsToSaveChangesToEvent:span:changes:)]) return NO;
+            return [delegate agendaWantsToSaveChangesToEvent:event span:span changes:changes];
+        };
+        popoverVC.calendarsHandler = ^NSArray<EKCalendar *> *{
+            id<AgendaDelegate> delegate = weakSelf.delegate;
+            if (![delegate respondsToSelector:@selector(agendaWritableEventCalendars)]) return @[];
+            return [delegate agendaWritableEventCalendars];
+        };
+        __weak AgendaPopoverVC *weakPopoverVC = popoverVC;
+        popoverVC.sizeChangedHandler = ^{
+            AgendaViewController *strongSelf = weakSelf;
+            AgendaPopoverVC *vc = weakPopoverVC;
+            if (strongSelf == nil || vc == nil || !strongSelf->_popover.isShown) return;
+            [vc.view layoutSubtreeIfNeeded];
+            [strongSelf->_popover setContentSize:vc.size];
+        };
         _popover = [MoPopover new];
         _popover.contentViewController = popoverVC;
         _popover.delegate = self;
@@ -380,6 +398,12 @@ static const CGFloat kAgendaBottomInset = 6;
             ((AgendaRowView *)rowView).isShowingDetails = (r == row);
         }
     }];
+}
+
+- (void)popoverWillClose:(NSNotification *)notification
+{
+    // Changes made in the details are saved when they close.
+    [(AgendaPopoverVC *)_popover.contentViewController saveChanges];
 }
 
 - (void)popoverDidClose:(NSNotification *)notification
@@ -546,6 +570,11 @@ static const CGFloat kAgendaBottomInset = 6;
 - (void)tableView:(MoTableView *)tableView didHoverOverRow:(NSInteger)hoveredRow
 {
     BOOL showPopoverOnHover = [[NSUserDefaults standardUserDefaults] boolForKey:kShowEventPopoverOnHover];
+    // While the details are being changed, hovering doesn't close them
+    // or show another event's.
+    if (_popover.isShown && ((AgendaPopoverVC *)_popover.contentViewController).isEditing) {
+        showPopoverOnHover = NO;
+    }
     if (hoveredRow == -1 || [self tableView:_tv isGroupRow:hoveredRow] ||
         [self tableView:_tv isEmptyEventRow:hoveredRow]) {
         if (showPopoverOnHover && hoveredRow != -1) {

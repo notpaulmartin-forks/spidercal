@@ -41,6 +41,12 @@ extern NSString * const kOverdueSectionExpanded;
 extern NSString * const kShowEventPopoverOnHover;
 extern NSString * const kDoNotCheckLoginItemStatus;
 extern NSString * const kWindowPosition;
+extern NSString * const kTypedDateOrder; // how numbers in typed dates like 6/11 are read
+
+typedef NS_ENUM(NSInteger, TypedDateOrder) {
+    TypedDateOrderDayMonth = 0, // 6/11 is 6 November (default)
+    TypedDateOrderMonthDay = 1  // 6/11 is June 11
+};
 
 typedef NS_ENUM(NSInteger, WindowPosition) {
     WindowPositionBelowMenuBarIcon = 0,

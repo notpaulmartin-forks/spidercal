@@ -73,6 +73,7 @@
         kAllowOutsideApplicationsFolder: @(NO),
         kDoNotCheckLoginItemStatus: @(NO),
         kWindowPosition:       @(WindowPositionBelowMenuBarIcon),
+        kTypedDateOrder:       @(TypedDateOrderDayMonth),
         // Disable AppKit's scroll edge effect (macOS 27), which draws a
         // hairline under the floating date header in the agenda.
         @"NSScrollPocketEnabled": @(NO),

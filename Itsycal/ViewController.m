@@ -1249,6 +1249,24 @@ static const CGFloat kWindowBottomMargin = 8;
     }
 }
 
+- (BOOL)agendaWantsToSaveChangesToEvent:(EKEvent *)event span:(EKSpan)span changes:(void (^)(EKEvent *event))changes
+{
+    // Undo is registered with the window's undo manager, like new
+    // events, so ⌘Z works.
+    NSError *error = nil;
+    BOOL result = [_ec saveChangesToEvent:event span:span changes:changes undoManager:self.itsycalWindow.undoManager error:&error];
+    if (result == NO && error != nil) {
+        [NSApp activate];
+        [[NSAlert alertWithError:error] runModal];
+    }
+    return result;
+}
+
+- (NSArray<EKCalendar *> *)agendaWritableEventCalendars
+{
+    return [_ec writableEventCalendars];
+}
+
 - (void)agendaWantsToSetReminder:(EKReminder *)reminder completed:(BOOL)completed
 {
     // Check off or uncheck. Undo is registered with the window's

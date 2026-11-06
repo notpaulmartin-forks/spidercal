@@ -63,19 +63,39 @@
     [positionPopup.cell setAccessibilityTitleUIElement:positionLabel.cell];
     [v addSubview:positionPopup];
 
+    // Typed dates: how the numbers in a date like 6/11, typed in quick
+    // add or in an event's details, are read.
+    NSTextField *dateOrderLabel = label(NSLocalizedString(@"Typed dates:", @"Settings label: how dates typed as numbers, like 6/11, are read"));
+    NSPopUpButton *dateOrderPopup = [NSPopUpButton new];
+    [dateOrderPopup addItemsWithTitles:@[NSLocalizedString(@"Day/Month (31/12)", @"Settings: typed dates like 6/11 are read day first"),
+                                         NSLocalizedString(@"Month/Day (12/31)", @"Settings: typed dates like 6/11 are read month first")]];
+    [dateOrderPopup itemAtIndex:0].tag = TypedDateOrderDayMonth;
+    [dateOrderPopup itemAtIndex:1].tag = TypedDateOrderMonthDay;
+    [dateOrderPopup.cell setAccessibilityTitleUIElement:dateOrderLabel.cell];
+    [v addSubview:dateOrderPopup];
+
     // Spidercal: quitting is here rather than in a menu under the
     // window's gear button, which now opens Settings. (⌘Q works too.)
     NSButton *quit = [NSButton buttonWithTitle:NSLocalizedString(@"Quit Spidercal", @"") target:NSApp action:@selector(terminate:)];
     [v addSubview:quit];
 
-    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_login, beepBeep, shortcutLabel, shortcutView, positionLabel, positionPopup, quit)];
-    [vfl :@"V:|-m-[_login]-[beepBeep]-m-[shortcutLabel]-3-[shortcutView(25)]-30-[positionPopup]-30-[quit]-m-|"];
+    MoVFLHelper *vfl = [[MoVFLHelper alloc] initWithSuperview:v metrics:@{@"m": @20} views:NSDictionaryOfVariableBindings(_login, beepBeep, shortcutLabel, shortcutView, positionLabel, positionPopup, dateOrderLabel, dateOrderPopup, quit)];
+    [vfl :@"V:|-m-[_login]-[beepBeep]-m-[shortcutLabel]-3-[shortcutView(25)]-30-[positionPopup]-[dateOrderPopup]-30-[quit]-m-|"];
     [vfl :@"H:|-m-[quit]-(>=m)-|"];
     [vfl :@"H:|-m-[_login]-(>=m)-|"];
     [vfl :@"H:|-m-[beepBeep]-(>=m)-|"];
     [vfl :@"H:|-(>=m)-[shortcutLabel]-(>=m)-|"];
     [vfl :@"H:|-m-[shortcutView(>=220)]-m-|"];
-    [vfl :@"H:|-m-[positionLabel]-[positionPopup]-(>=m)-|" :NSLayoutFormatAlignAllFirstBaseline];
+    [vfl :@"H:|-(>=m)-[positionLabel]-[positionPopup]-(>=m)-|" :NSLayoutFormatAlignAllFirstBaseline];
+    [vfl :@"H:|-(>=m)-[dateOrderLabel]-[dateOrderPopup]-(>=m)-|" :NSLayoutFormatAlignAllFirstBaseline];
+    // The labels end, and the popups start, at the same place, and
+    // the longer label starts at the margin.
+    [v addConstraint:[positionLabel.trailingAnchor constraintEqualToAnchor:dateOrderLabel.trailingAnchor]];
+    for (NSTextField *label in @[positionLabel, dateOrderLabel]) {
+        NSLayoutConstraint *atMargin = [label.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:20];
+        atMargin.priority = 200;
+        atMargin.active = YES;
+    }
 
     // Center shortcutLabel
     [v addConstraint:[NSLayoutConstraint constraintWithItem:shortcutLabel attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:v attribute:NSLayoutAttributeCenterX multiplier:1 constant:0]];
@@ -86,6 +106,7 @@
 
     // Bindings for window position
     [positionPopup bind:@"selectedTag" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kWindowPosition] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
+    [dateOrderPopup bind:@"selectedTag" toObject:[NSUserDefaultsController sharedUserDefaultsController] withKeyPath:[@"values." stringByAppendingString:kTypedDateOrder] options:@{NSContinuouslyUpdatesValueBindingOption: @(YES)}];
 
     self.view = v;
 }

@@ -41,4 +41,11 @@ NSString *ShortTimeZoneName(NSTimeZone *timeZone, NSDate *date);
 // The time zone a word or phrase names ("JP", "PST", "Tokyo",
 // "Japan"), or nil.
 + (NSTimeZone *)timeZoneForName:(NSString *)name;
+// A day typed on its own: "9 Nov", "Nov 9", "9.11.", "9/11", "9-11"
+// or "2026-11-09", with or without a year, or "today" or "tomorrow".
+// Numbers are read day first or month first as set in Settings
+// (kTypedDateOrder). Without a year, it's the date nearest to near.
+// Returns the start of that day in calendar, or nil if text isn't
+// a date.
++ (NSDate *)dateFromTypedString:(NSString *)text near:(NSDate *)near calendar:(NSCalendar *)calendar;
 @end
