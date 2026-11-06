@@ -85,6 +85,7 @@ const NSTimeInterval kAlertRegularRelativeOffsets[kAlertRegularNumOffsets] = {
     NSPopUpButton *_tzPopup;
     NSTimeZone *_timeZone;          // the time zone the pickers show
     NSDate *_defaultStart, *_defaultEnd;
+    NSDate *_previousStart;         // the start before the last change, see -startDateChanged:
     LocationSuggestionsView *_suggestions;
     NSArray<NSControl *> *_sizedControls; // follow the size preference
     NSButton *_collapseButton;
@@ -471,11 +472,13 @@ const NSTimeInterval kAlertRegularRelativeOffsets[kAlertRegularNumOffsets] = {
     _allDayCheckbox.state = NSControlStateValueOff;
     _startDate.datePickerElements = NSDatePickerElementFlagYearMonthDay | NSDatePickerElementFlagHourMinute;
     _endDate.datePickerElements   = NSDatePickerElementFlagYearMonthDay | NSDatePickerElementFlagHourMinute;
+    // The end pickers have no minimum date: with one, typing a day
+    // before the start's (to go on and change the month) is refused.
+    // -saveEvent: checks the dates instead.
     _startDate.dateValue = initialStart;
-    _endDate.minDate     = initialStart; // !! Must set minDate before dateValue !!
     _endDate.dateValue   = initialEnd;
-    _repEndDate.minDate  = initialStart;
     _repEndDate.dateValue = initialEnd;
+    _previousStart = initialStart;
     [_repPopup selectItemAtIndex:0];     // 'None' selected
     [_repEndPopup selectItemAtIndex:0];  // 'Never' selected
     [self updateRepeatRows];
@@ -616,16 +619,18 @@ const NSTimeInterval kAlertRegularRelativeOffsets[kAlertRegularNumOffsets] = {
 
 - (void)startDateChanged:(NSDatePicker *)startPicker
 {
-    // Make sure endDate is never before startDate.
-    // Make sure repeatEndDate is never before endDate.
-    // Default duration is same as setting in Calendar.app.
-    NSInteger newEventDuration = [self defaultDurationInMinutesForNewEvent];
-    _endDate.minDate    = _startDate.dateValue;
-    _repEndDate.minDate = _startDate.dateValue;
-    _endDate.dateValue = [self.cal dateByAddingUnit:NSCalendarUnitMinute
-                                              value:newEventDuration
-                                             toDate:_startDate.dateValue
-                                            options:0];
+    // The end moves with the start, keeping the event's length, as in
+    // Calendar. If the end is before the start (it's being typed),
+    // use the default length, the same as Calendar's setting.
+    NSDate *start = _startDate.dateValue;
+    NSTimeInterval duration = _previousStart ? [_endDate.dateValue timeIntervalSinceDate:_previousStart] : -1;
+    if (duration < 0) duration = [self defaultDurationInMinutesForNewEvent] * 60;
+    _endDate.dateValue = [start dateByAddingTimeInterval:duration];
+    _previousStart = start;
+    // The repeat can't end before the event starts.
+    if ([_repEndDate.dateValue compare:start] == NSOrderedAscending) {
+        _repEndDate.dateValue = _endDate.dateValue;
+    }
 }
 
 - (void)repPopupChanged:(id)sender
@@ -802,6 +807,24 @@ const NSTimeInterval kAlertRegularRelativeOffsets[kAlertRegularNumOffsets] = {
     NSDate *startDate = _startDate.dateValue;
     NSDate *endDate   = _endDate.dateValue;
     
+    // The end pickers have no minimum date (see -resetForm), so check
+    // here that the event doesn't end before it starts, and that a
+    // repeat doesn't end before the event does.
+    BOOL repeatEndsOnDate = [_repPopup indexOfItem:_repPopup.selectedItem] != 0 &&
+                            [_repEndPopup indexOfItem:_repEndPopup.selectedItem] != 0;
+    NSDatePicker *badPicker = nil;
+    if ([endDate compare:startDate] == NSOrderedAscending) {
+        badPicker = _endDate;
+    }
+    else if (repeatEndsOnDate && [_repEndDate.dateValue compare:[self.cal startOfDayForDate:startDate]] == NSOrderedAscending) {
+        badPicker = _repEndDate;
+    }
+    if (badPicker) {
+        NSBeep();
+        [self.view.window makeFirstResponder:badPicker];
+        return;
+    }
+
     // Get the calendar.
     CalendarInfo *calInfo = [self selectedCalendarInfo];
     if (!calInfo) {
@@ -981,9 +1004,8 @@ static NSMenuItem *TimeZoneMenuItem(NSTimeZone *tz)
     NSDate *end   = [newCal dateFromComponents:[oldCal components:units fromDate:_endDate.dateValue]];
     [self selectTimeZone:newTZ];
     _startDate.dateValue = start;
-    _endDate.minDate     = start; // !! Must set minDate before dateValue !!
     _endDate.dateValue   = end;
-    _repEndDate.minDate  = start;
+    _previousStart = start;
 }
 
 #pragma mark -
@@ -1011,9 +1033,8 @@ static NSMenuItem *TimeZoneMenuItem(NSTimeZone *tz)
     NSDate *end   = draft.startDate ? draft.endDate : _defaultEnd;
     if (start && end) {
         _startDate.dateValue = start;
-        _endDate.minDate     = start; // !! Must set minDate before dateValue !!
         _endDate.dateValue   = end;
-        _repEndDate.minDate  = start;
+        _previousStart = start;
     }
 
     NSString *trimmedTitle = [_title.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
