@@ -615,7 +615,13 @@ static const CGFloat kAgendaBottomInset = 6;
     // or popover opened. Refresh it; NO means it no longer exists.
     if (![info.event refresh]) return;
     if (self.delegate && [self.delegate respondsToSelector:@selector(agendaWantsToDeleteEvent:)]) {
+        // The details stay open behind the dialog asking to confirm,
+        // so Cancel goes back to them. A transient popover would close
+        // when the dialog takes the keyboard.
+        NSPopoverBehavior behavior = _popover.behavior;
+        if (_popover.isShown) _popover.behavior = NSPopoverBehaviorApplicationDefined;
         [self.delegate agendaWantsToDeleteEvent:info.event];
+        _popover.behavior = behavior;
     }
 }
 

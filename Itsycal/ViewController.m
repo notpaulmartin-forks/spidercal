@@ -1155,9 +1155,30 @@ static const CGFloat kWindowBottomMargin = 8;
 
 - (void)windowDidResignKey:(NSNotification *)notification
 {
-    if (_btnPin.state == NSControlStateValueOff) {
-        [self hideItsycalWindow];
+    if (_btnPin.state != NSControlStateValueOff) return;
+    // A dialog, such as the one confirming an event's deletion, takes
+    // the keyboard while it shows. Stay open behind it, and decide when
+    // it's closed: the default run loop mode doesn't run until then.
+    if (NSApp.modalWindow) {
+        [self performSelector:@selector(hideUnlessKeyAfterDialog) withObject:nil afterDelay:0 inModes:@[NSDefaultRunLoopMode]];
+        return;
     }
+    [self hideItsycalWindow];
+}
+
+// After a dialog: take the keyboard back if nothing else has it, so a
+// click elsewhere hides the window as usual. Hide if another window or
+// app has it.
+- (void)hideUnlessKeyAfterDialog
+{
+    if (_btnPin.state != NSControlStateValueOff || !self.itsycalWindow.isVisible) return;
+    NSWindow *key = NSApp.keyWindow;
+    if (key == self.itsycalWindow || key.parentWindow == self.itsycalWindow) return;
+    if (key == nil && NSApp.isActive) {
+        [self.itsycalWindow makeKeyWindow];
+        return;
+    }
+    [self hideItsycalWindow];
 }
 
 
