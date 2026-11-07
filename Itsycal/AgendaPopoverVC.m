@@ -5,7 +5,7 @@
 
 #import "AgendaPopoverVC.h"
 #import "EventCenter.h"
-#import "MoPopover.h"
+#import "DayPicker.h"
 #import "MoThemeView.h"
 #import "MoUtils.h"
 #import "MoVFLHelper.h"
@@ -956,10 +956,8 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     BOOL _allDayBeforeEditing;
     // The text of the date field being edited, for the day it's set to.
     NSString *_dateFieldText;
-    // The calendar below a date field being edited.
-    MoPopover *_calendarPopover;
-    NSDatePicker *_calendarPicker;
-    NSButton *_allDayCheckbox;
+    // The calendar below the date field being edited.
+    DayPicker *_dayPicker;
     AgendaPopoverField *_calendarField;
 }
 
@@ -1200,6 +1198,7 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 - (void)viewDidDisappear
 {
     [super viewDidDisappear];
+    [self closeCalendar];
     if (_clickMonitor) {
         [NSEvent removeMonitor:_clickMonitor];
         _clickMonitor = nil;
@@ -1783,18 +1782,13 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     if (_editingView && !(hit && [hit isDescendantOf:_editingView])) {
         [self endEditing];
     }
-    // A click on a date shows the calendar, before the window starts
-    // the date's editing. See -showCalendarForField:.
-    for (AgendaPopoverField *field in @[_startDateField, _endDateField]) {
-        if (hit == field && field.editable && field.currentEditor == nil) {
-            [self showCalendarForField:field];
-        }
-    }
 }
 
 - (void)sizeChanged
 {
     if (self.sizeChangedHandler) self.sizeChangedHandler();
+    // The date field being edited may have moved.
+    if (_calendarField) [_dayPicker showBelowView:_calendarField];
 }
 
 - (void)renderAndResize
@@ -1830,8 +1824,9 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     _startBeforeEditing = [self currentStart];
     _endBeforeEditing = [self currentEnd];
     _allDayBeforeEditing = [self currentAllDay];
-    // Typing replaces the day.
+    // Typing replaces the day, or it can be picked below.
     [field.currentEditor selectAll:nil];
+    [self showCalendarForField:field];
 }
 
 - (void)dateFieldEndedEditing:(AgendaPopoverField *)field
@@ -1882,7 +1877,7 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     NSString *text = field.currentEditor.string ?: field.stringValue;
     NSDate *near = field == _startDateField ? [self currentStart] : [self currentEnd];
     NSDate *day = [NLEventParser dateFromTypedString:text near:near calendar:NSCalendar.currentCalendar];
-    if (day && _calendarField == field) _calendarPicker.dateValue = day;
+    if (day && _calendarField == field) _dayPicker.date = day;
     [self sizeChanged];
 }
 
@@ -1962,101 +1957,57 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 
 #pragma mark Calendar below a date
 
-// Show the calendar below field, before field is edited (see
-// -handleClick:): when a
-// popover's window first shows with nothing in it that can have
-// focus, AppKit takes focus away from the part of its parent window
-// that has it, which would end the typing in the field.
+// Show the calendar below field, which is being edited. It doesn't
+// take the focus, so typing goes on in field.
 - (void)showCalendarForField:(AgendaPopoverField *)field
 {
-    if (_calendarPopover == nil) {
-        _calendarPicker = [NSDatePicker new];
-        _calendarPicker.datePickerStyle = NSDatePickerStyleClockAndCalendar;
-        _calendarPicker.datePickerElements = NSDatePickerElementFlagYearMonthDay;
-        _calendarPicker.bezeled = NO;
-        _calendarPicker.bordered = NO;
-        _calendarPicker.drawsBackground = NO;
-        // Typing stays in the date field.
-        _calendarPicker.refusesFirstResponder = YES;
-        _calendarPicker.target = self;
-        _calendarPicker.action = @selector(dayPicked:);
-        _allDayCheckbox = [NSButton checkboxWithTitle:NSLocalizedString(@"All-day", @"Checkbox below the calendar in the event popover") target:self action:@selector(allDayClicked:)];
-        _allDayCheckbox.refusesFirstResponder = YES;
-        NSStackView *stack = [NSStackView stackViewWithViews:@[_calendarPicker, _allDayCheckbox]];
-        stack.orientation = NSUserInterfaceLayoutOrientationVertical;
-        stack.alignment = NSLayoutAttributeLeading;
-        stack.spacing = 8;
-        stack.edgeInsets = NSEdgeInsetsMake(10, 10, 10, 10);
-        NSViewController *vc = [NSViewController new];
-        vc.view = stack;
-        _calendarPopover = [MoPopover new];
-        _calendarPopover.contentViewController = vc;
-        _calendarPopover.behavior = NSPopoverBehaviorApplicationDefined;
-        _calendarPopover.animates = NO;
+    if (_dayPicker == nil) {
+        __weak AgendaPopoverVC *weakSelf = self;
+        _dayPicker = [DayPicker new];
+        _dayPicker.dayPicked = ^(NSDate *day) { [weakSelf dayPicked:day]; };
+        _dayPicker.allDayClicked = ^(BOOL allDay) { [weakSelf allDayClicked:allDay]; };
     }
     _calendarField = field;
     BOOL isStart = field == _startDateField;
-    _calendarPicker.dateValue = isStart ? [self currentStart] : [self currentEnd];
+    _dayPicker.date = isStart ? [self currentStart] : [self currentEnd];
     // All-day is for the whole event, so only below its start.
-    _allDayCheckbox.hidden = !isStart;
-    _allDayCheckbox.state = [self currentAllDay] ? NSControlStateValueOn : NSControlStateValueOff;
-    _calendarPopover.contentSize = _calendarPopover.contentViewController.view.fittingSize;
-    [_calendarPopover showRelativeToRect:field.bounds ofView:field preferredEdge:field.isFlipped ? NSRectEdgeMaxY : NSRectEdgeMinY];
-    // Typing goes on in the date field.
-    [self.view.window makeKeyWindow];
+    _dayPicker.showsAllDay = isStart;
+    _dayPicker.allDay = [self currentAllDay];
+    [_dayPicker showBelowView:field];
 }
 
 - (void)closeCalendar
 {
     _calendarField = nil;
-    if (_calendarPopover.isShown) [_calendarPopover close];
+    [_dayPicker close];
 }
 
-- (void)dayPicked:(NSDatePicker *)picker
+// A day was clicked in the calendar: the field's day, and done.
+- (void)dayPicked:(NSDate *)day
 {
     AgendaPopoverField *field = _calendarField;
     if (field == nil || _editingView != field) return;
     BOOL isStart = field == _startDateField;
-    NSDate *before = isStart ? [self currentStart] : [self currentEnd];
-    NSDate *picked = picker.dateValue;
-    if (![self setDay:picked isStart:isStart]) {
+    if (![self setDay:day isStart:isStart]) {
         NSBeep();
-        picker.dateValue = before;
         return;
     }
-    // Show the day in the field, as if it was typed.
+    // As if it was typed.
     _dateFieldText = DayString(isStart ? [self currentStart] : [self currentEnd]);
     field.currentEditor.string = _dateFieldText;
-    [field.currentEditor selectAll:nil];
-    [field invalidateIntrinsicContentSize];
-    [self renderAndResize];
-    // The arrows at the top go to the same day of the next or previous
-    // month. Leave the calendar open for those, and close it when a
-    // day is clicked.
-    NSCalendar *calendar = NSCalendar.currentCalendar;
-    NSDateComponents *b = [calendar components:NSCalendarUnitMonth | NSCalendarUnitDay fromDate:before];
-    NSDateComponents *p = [calendar components:NSCalendarUnitMonth | NSCalendarUnitDay fromDate:picked];
-    BOOL steppedMonth = b.day == p.day && b.month != p.month;
-    if (steppedMonth) {
-        [self.view.window makeKeyWindow];
-    }
-    else {
-        [self endEditing];
-        [self.view.window makeKeyWindow];
-    }
+    [self endEditing];
 }
 
-- (void)allDayClicked:(NSButton *)checkbox
+- (void)allDayClicked:(BOOL)allDay
 {
-    [self setAllDay:checkbox.state == NSControlStateValueOn];
+    [self setAllDay:allDay];
     _dateFieldText = DayString([self currentStart]);
     if (_editingView == _startDateField) {
         _startDateField.currentEditor.string = _dateFieldText;
         [_startDateField.currentEditor selectAll:nil];
     }
-    _calendarPicker.dateValue = [self currentStart];
+    _dayPicker.date = [self currentStart];
     [self renderAndResize];
-    [self.view.window makeKeyWindow];
 }
 
 #pragma mark Times
@@ -2162,9 +2113,6 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     _showsEndDate = YES;
     [self renderAndResize];
     [self.view layoutSubtreeIfNeeded];
-    // The calendar shows before the typing starts. See
-    // -showCalendarForField:.
-    [self showCalendarForField:_endDateField];
     [self.view.window makeFirstResponder:_endDateField];
 }
 
