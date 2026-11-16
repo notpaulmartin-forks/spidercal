@@ -51,6 +51,7 @@
 @property (nonatomic, readonly) NSDate *summaryStart;
 @property (nonatomic, readonly) NSDate *summaryEnd;
 @property (nonatomic, readonly) BOOL summaryAllDay;
+@property (nonatomic, readonly) NSString *summaryRepeat; // nil if it doesn't repeat
 @property (nonatomic, readonly) NSTimeZone *summaryTimeZone; // nil if it is the Mac's time zone
 @property (nonatomic, readonly) NSString *summaryCalendarTitle;
 @property (nonatomic, readonly) NSColor *summaryCalendarColor;

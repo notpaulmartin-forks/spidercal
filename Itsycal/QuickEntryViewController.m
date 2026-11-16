@@ -192,7 +192,7 @@ static const CGFloat kSwapDuration = 0.18;
     // Under the top row
     LocationSuggestionsView *_suggestions;
     NSView *_summary;
-    NSTextField *_sumTitle, *_sumLocation, *_sumDate;
+    NSTextField *_sumTitle, *_sumLocation, *_sumDate, *_sumRepeat;
     NSButton *_btnExpand, *_btnCalendar, *_btnSave;
     EventViewController *_eventVC;
     NSBox *_separator;
@@ -363,6 +363,8 @@ static const CGFloat kSwapDuration = 0.18;
     _sumTitle = label(font, Theme.monthTextColor);
     _sumLocation = label(font, Theme.agendaEventDateTextColor);
     _sumDate = label(font, Theme.agendaEventDateTextColor);
+    _sumRepeat = label(font, Theme.agendaEventDateTextColor);
+    _sumRepeat.hidden = YES;
 
     _btnExpand = [NSButton buttonWithImage:[NSImage imageWithSystemSymbolName:@"chevron.down" accessibilityDescription:NSLocalizedString(@"Show Details", @"")] target:self action:@selector(toggleExpanded:)];
     _btnExpand.bordered = NO;
@@ -391,11 +393,12 @@ static const CGFloat kSwapDuration = 0.18;
     // As tall as the buttons. The spacer has no height of its own.
     [buttons setHuggingPriority:NSLayoutPriorityRequired - 1 forOrientation:NSLayoutConstraintOrientationVertical];
 
-    NSStackView *summaryStack = [NSStackView stackViewWithViews:@[_sumTitle, _sumLocation, _sumDate, buttons]];
+    NSStackView *summaryStack = [NSStackView stackViewWithViews:@[_sumTitle, _sumLocation, _sumDate, _sumRepeat, buttons]];
     summaryStack.orientation = NSUserInterfaceLayoutOrientationVertical;
     summaryStack.alignment = NSLayoutAttributeLeading;
     summaryStack.spacing = 2;
     [summaryStack setCustomSpacing:6 afterView:_sumDate];
+    [summaryStack setCustomSpacing:6 afterView:_sumRepeat];
     // As tall as its lines, like the stack it's in (see below). When
     // a tall calendar leaves the agenda only the room the screen has,
     // the agenda gets shorter as the summary appears, and the summary
@@ -495,6 +498,7 @@ static const CGFloat kSwapDuration = 0.18;
     _sumTitle.font = [NSFont systemFontOfSize:SizePref.calendarTitleFontSize weight:NSFontWeightMedium];
     _sumLocation.font = font;
     _sumDate.font = font;
+    _sumRepeat.font = font;
     _btnCalendar.font = font;
     _btnSave.font = font;
     _btnSave.controlSize = SizePref.sizePreference == SizePreferenceSmall ? NSControlSizeSmall
@@ -678,6 +682,12 @@ static const CGFloat kSwapDuration = 0.18;
     }
     _sumDate.stringValue = when ?: @"";
     _sumDate.toolTip = when;
+    // "Every Week", under the day and time. The gap below the lines
+    // comes after the last.
+    NSString *repeat = when.length ? _eventVC.summaryRepeat : nil;
+    _sumRepeat.stringValue = repeat ?: @"";
+    _sumRepeat.hidden = repeat.length == 0;
+    [(NSStackView *)_sumDate.superview setCustomSpacing:_sumRepeat.hidden ? 6 : 2 afterView:_sumDate];
     _sumTitle.toolTip = _eventVC.summaryTitle;
     _sumLocation.toolTip = location;
 

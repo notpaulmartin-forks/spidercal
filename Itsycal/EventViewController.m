@@ -86,6 +86,7 @@ const NSTimeInterval kAlertRegularRelativeOffsets[kAlertRegularNumOffsets] = {
     NSTimeZone *_timeZone;          // the time zone the pickers show
     NSDate *_defaultStart, *_defaultEnd;
     NSDate *_previousStart;         // the start before the last change, see -startDateChanged:
+    NLEventRepeat _draftRepeat;     // the repeat the quick entry text last named
     LocationSuggestionsView *_suggestions;
     NSArray<NSControl *> *_sizedControls; // follow the size preference
     NSButton *_collapseButton;
@@ -481,6 +482,7 @@ const NSTimeInterval kAlertRegularRelativeOffsets[kAlertRegularNumOffsets] = {
     _previousStart = initialStart;
     [_repPopup selectItemAtIndex:0];     // 'None' selected
     [_repEndPopup selectItemAtIndex:0];  // 'Never' selected
+    _draftRepeat = NLEventRepeatNone;
     [self updateRepeatRows];
     [_alertPopup selectItemAtIndex:0];   // 'None' selected
     _saveButton.enabled  = NO;
@@ -1037,6 +1039,14 @@ static NSMenuItem *TimeZoneMenuItem(NSTimeZone *tz)
         _previousStart = start;
     }
 
+    // The repeat the text names. One chosen in the form stays until the
+    // text names another.
+    if (draft.repeat != _draftRepeat) {
+        _draftRepeat = draft.repeat;
+        [_repPopup selectItemAtIndex:draft.repeat];
+        [self repPopupChanged:_repPopup];
+    }
+
     NSString *trimmedTitle = [_title.stringValue stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     _saveButton.enabled = trimmedTitle.length > 0;
 }
@@ -1052,6 +1062,11 @@ static NSMenuItem *TimeZoneMenuItem(NSTimeZone *tz)
 - (NSDate *)summaryStart { return _startDate.dateValue; }
 - (NSDate *)summaryEnd { return _endDate.dateValue; }
 - (BOOL)summaryAllDay { return _allDayCheckbox.state == NSControlStateValueOn; }
+
+- (NSString *)summaryRepeat
+{
+    return [_repPopup indexOfItem:_repPopup.selectedItem] > 0 ? _repPopup.titleOfSelectedItem : nil;
+}
 
 - (NSTimeZone *)summaryTimeZone
 {

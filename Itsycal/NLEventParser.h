@@ -14,20 +14,36 @@
 // beyond the user's region before settling for an offset.
 NSString *ShortTimeZoneName(NSTimeZone *timeZone, NSDate *date);
 
+// How an event repeats, in the order of the event form's Repeat menu.
+typedef NS_ENUM(NSInteger, NLEventRepeat) {
+    NLEventRepeatNone = 0,
+    NLEventRepeatDaily,
+    NLEventRepeatWeekly,
+    NLEventRepeatEveryTwoWeeks,
+    NLEventRepeatMonthly,
+    NLEventRepeatYearly
+};
+
 @interface NLEventDraft : NSObject
 // What is left of the text once dates, times, time zones and the
-// location are taken out.
+// location are taken out. Text in quotes is taken as it is, without
+// the quotes: `Wed noon "lunch at noon"` is "lunch at noon".
 @property (nonatomic, copy) NSString *title;
 // nil if the text has no date or time.
 @property (nonatomic) NSDate *startDate;
 @property (nonatomic) NSDate *endDate;
-// The text has a date but no time.
+// The text has a date but no time. endDate is then the start of the
+// last day: the same day, or the last of a range ("20-24 Dec").
 @property (nonatomic) BOOL allDay;
+// "every day", "every Tuesday", "every other week" etc.
+@property (nonatomic) NLEventRepeat repeat;
 // nil if the text doesn't name a time zone.
 @property (nonatomic) NSTimeZone *timeZone;
-// nil if the text has no "at <place>".
+// nil if the text has no "at <place>". A place in quotes, as in
+// `at "the lunch place"`, is all of what is in them.
 @property (nonatomic, copy) NSString *location;
-// Where the place's name is in the text ({NSNotFound, 0} if none).
+// Where the place's name is in the text, inside its quotes if it has
+// them ({NSNotFound, 0} if none).
 @property (nonatomic) NSRange locationRange;
 // The parts of the text that were understood (NSRange values).
 @property (nonatomic) NSArray<NSValue *> *tokenRanges;
