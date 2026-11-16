@@ -6,6 +6,7 @@
 #import "AgendaPopoverVC.h"
 #import "EventCenter.h"
 #import "DayPicker.h"
+#import "LocationSuggestionsView.h"
 #import "MoThemeView.h"
 #import "MoUtils.h"
 #import "MoVFLHelper.h"
@@ -31,6 +32,11 @@ static const CGFloat kMaxPopoverHeight = 800;
 // The space between a time picker's edges and its text.
 static const CGFloat kTimePickerLeadingInset = 2.5;
 static const CGFloat kTimePickerTrailingInset = 3;
+
+// Whether the details show the parts an event doesn't have yet (⌄).
+static NSString * const kShowsAllDetails = @"EventDetailsShowAll";
+// Between the icon and the text of the repeat and alert rows.
+static const CGFloat kDateRowIconSpacing = 5;
 
 // The changes made in the details, kept until -saveChanges, by part.
 // NSNull for a part that was removed.
@@ -414,12 +420,18 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 @property (nonatomic) BOOL canEdit;
 // Return finishes editing.
 @property (nonatomic) BOOL singleLine;
-// Shown while there's no text.
+// Shown while there's no text and it's being edited.
 @property (nonatomic, copy) NSString *placeholder;
+// Shown while there's no text and it isn't being edited, e.g. "Add
+// Location": clicking it starts typing one.
+@property (nonatomic, copy) NSString *emptyText;
 @property (nonatomic, copy) void (^beganEditing)(void);
 // The text as edited and as it was before. Esc puts it back.
 @property (nonatomic, copy) void (^endedEditing)(NSString *text, NSString *before);
 @property (nonatomic, copy) void (^textChanged)(void);
+// Asked first about each key command while it's being edited (arrow
+// keys, Return, Esc). YES if it handled the command.
+@property (nonatomic, copy) BOOL (^handlesCommand)(SEL selector);
 // Set the width the text wraps to. kTextWidth to start.
 - (void)setWrapWidth:(CGFloat)width;
 - (void)setAttributedText:(NSAttributedString *)text;
@@ -565,6 +577,7 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 
 - (void)doCommandBySelector:(SEL)selector
 {
+    if (self.editable && self.handlesCommand && self.handlesCommand(selector)) return;
     if (self.editable) {
         if ((selector == @selector(insertNewline:) && self.singleLine) ||
             selector == @selector(insertTab:) || selector == @selector(insertBacktab:)) {
@@ -590,11 +603,17 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 - (void)drawRect:(NSRect)dirtyRect
 {
     [super drawRect:dirtyRect];
-    if (self.string.length == 0 && self.placeholder.length > 0) {
-        [self.placeholder drawAtPoint:self.textContainerOrigin withAttributes:@{
-            NSFontAttributeName: [self plainFont],
-            NSForegroundColorAttributeName: NSColor.placeholderTextColor}];
-    }
+    if (self.string.length > 0) return;
+    NSString *text = self.editable ? self.placeholder : self.emptyText;
+    if (text.length == 0) return;
+    [text drawAtPoint:self.textContainerOrigin withAttributes:@{
+        NSFontAttributeName: [self plainFont],
+        NSForegroundColorAttributeName: self.editable ? NSColor.placeholderTextColor : NSColor.tertiaryLabelColor}];
+}
+
+- (NSString *)accessibilityPlaceholderValue
+{
+    return self.editable ? self.placeholder : self.emptyText;
 }
 
 // While it's being edited, a focus ring around the text, a little
@@ -705,6 +724,104 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 // AgendaPopoverTimePicker
 // =========================================================================
 
+// Nothing, as tall as another view and with its baseline. At the start
+// of a line of the date row, it keeps the line as tall without times
+// (all-day) as with them.
+@interface AgendaPopoverStrut : NSView
+@property (nonatomic, weak) NSView *model;
+@end
+
+@implementation AgendaPopoverStrut
+
+- (NSSize)intrinsicContentSize
+{
+    return NSMakeSize(0, self.model.intrinsicContentSize.height);
+}
+
+- (CGFloat)firstBaselineOffsetFromTop
+{
+    return self.model.firstBaselineOffsetFromTop;
+}
+
+- (CGFloat)lastBaselineOffsetFromBottom
+{
+    return self.model.lastBaselineOffsetFromBottom;
+}
+
+@end
+
+// =========================================================================
+
+// A checkbox with its title's capitals in line with its box. With a box
+// smaller than usual for the text, AppKit puts the title a point or so
+// too high: it keeps the bottom of the box 3pt below the title's
+// baseline whatever the size of the text. The box is drawn on its own layer, so the title
+// moves instead.
+@interface AgendaPopoverCheckboxCell : NSButtonCell
+- (NSSize)sizeForTitleInSize:(NSSize)size;
+@end
+
+@implementation AgendaPopoverCheckboxCell
+
+// The middle of the title's capitals is the middle of the box. A button
+// is flipped.
+- (CGFloat)titleBaselineForBounds:(NSRect)bounds
+{
+    NSRect box = [self imageRectForBounds:bounds];
+    CGFloat baseline = NSMidY(box) + self.font.capHeight / 2;
+    CGFloat scale = self.controlView.window.backingScaleFactor ?: NSScreen.mainScreen.backingScaleFactor ?: 1;
+    return round(baseline * scale) / scale;
+}
+
+// Tall enough for the title where it's drawn. AppKit centres the box
+// in a taller button, so it grows a point at a time.
+- (NSSize)sizeForTitleInSize:(NSSize)size
+{
+    for (int i = 0; i < 4; i++) {
+        CGFloat bottom = [self titleBaselineForBounds:(NSRect){NSZeroPoint, size}] - self.font.descender;
+        if (bottom <= size.height) break;
+        size.height = ceil(size.height + 1);
+    }
+    return size;
+}
+
+- (NSRect)drawTitle:(NSAttributedString *)title withFrame:(NSRect)frame inView:(NSView *)controlView
+{
+    // Without NSStringDrawingUsesLineFragmentOrigin, the rect's origin
+    // is the baseline's.
+    CGFloat baseline = [self titleBaselineForBounds:controlView.bounds];
+    [title drawWithRect:NSMakeRect(NSMinX(frame), baseline, NSWidth(frame), 0) options:0];
+    return frame;
+}
+
+@end
+
+@interface AgendaPopoverCheckbox : NSButton
+@end
+
+@implementation AgendaPopoverCheckbox
+
++ (Class)cellClass
+{
+    return [AgendaPopoverCheckboxCell class];
+}
+
+- (NSSize)intrinsicContentSize
+{
+    return [(AgendaPopoverCheckboxCell *)self.cell sizeForTitleInSize:super.intrinsicContentSize];
+}
+
+- (void)viewDidChangeBackingProperties
+{
+    [super viewDidChangeBackingProperties];
+    // The title's baseline is on the screen's pixels.
+    [self invalidateIntrinsicContentSize];
+}
+
+@end
+
+// =========================================================================
+
 // A time of day that looks like text until it's clicked. Return
 // finishes changing it and Esc puts it back.
 @interface AgendaPopoverTimePicker : NSDatePicker
@@ -778,21 +895,24 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 // =========================================================================
 
 // An icon and text, e.g. how the event repeats. If canEdit, clicking
-// it shows a menu below it to change it.
+// it shows a menu below it to change it, or calls clicked.
 @interface AgendaPopoverMenuRow : NSView
 @property (nonatomic, readonly) NSImageView *icon;
 @property (nonatomic, readonly) NSTextField *label;
 @property (nonatomic) BOOL canEdit;
 @property (nonatomic, copy) NSMenu *(^menuProvider)(void);
+@property (nonatomic, copy) void (^clicked)(void);
 // spacing: between the icon and the text.
 - (instancetype)initWithSpacing:(CGFloat)spacing;
 - (void)setTextFont:(NSFont *)font iconSize:(CGFloat)iconSize;
+- (void)setIconColumnWidth:(CGFloat)width;
 @end
 
 @implementation AgendaPopoverMenuRow
 {
     NSView *_highlight;
     NSLayoutConstraint *_iconCenter;
+    NSLayoutConstraint *_iconWidth;
 }
 
 - (instancetype)initWithSpacing:(CGFloat)spacing
@@ -837,6 +957,19 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     return self;
 }
 
+// The icon in the middle of a column this wide, so the text of rows
+// with different icons lines up.
+- (void)setIconColumnWidth:(CGFloat)width
+{
+    if (_iconWidth == nil) {
+        [_icon setContentHuggingPriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [_icon setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
+        _iconWidth = [_icon.widthAnchor constraintEqualToConstant:width];
+        _iconWidth.active = YES;
+    }
+    _iconWidth.constant = width;
+}
+
 - (void)setTextFont:(NSFont *)font iconSize:(CGFloat)iconSize
 {
     _label.font = font;
@@ -847,8 +980,12 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 
 - (void)mouseDown:(NSEvent *)event
 {
-    if (!self.canEdit || !self.menuProvider) {
+    if (!self.canEdit || !(self.clicked || self.menuProvider)) {
         [super mouseDown:event];
+        return;
+    }
+    if (self.clicked) {
+        self.clicked();
         return;
     }
     [self showMenu];
@@ -875,17 +1012,26 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 
 - (NSAccessibilityRole)accessibilityRole
 {
-    return self.canEdit ? NSAccessibilityPopUpButtonRole : NSAccessibilityStaticTextRole;
+    if (!self.canEdit) return NSAccessibilityStaticTextRole;
+    return self.clicked ? NSAccessibilityButtonRole : NSAccessibilityPopUpButtonRole;
 }
 
+// The text, unless a label was set for a row whose text doesn't say
+// what it does.
 - (NSString *)accessibilityLabel
 {
-    return _label.stringValue;
+    NSString *label = [super accessibilityLabel];
+    return label.length > 0 ? label : _label.stringValue;
 }
 
 - (BOOL)accessibilityPerformPress
 {
-    if (!self.canEdit || !self.menuProvider) return NO;
+    if (!self.canEdit) return NO;
+    if (self.clicked) {
+        self.clicked();
+        return YES;
+    }
+    if (!self.menuProvider) return NO;
     [self showMenu];
     return YES;
 }
@@ -915,18 +1061,21 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     // timed event on more than one day has its end on a second line.
     NSStackView *_dateRow;
     NSStackView *_dateLine1, *_dateLine2;
+    AgendaPopoverStrut *_dateStrut; // starts _dateLine1
+    LocationSuggestionsView *_suggestions; // below _location
     AgendaPopoverField *_startDateField, *_endDateField;
     AgendaPopoverTimePicker *_startTimePicker, *_endTimePicker;
     NSTextField *_dateComma1, *_dateComma2, *_dateDash;
     NSInteger _dateLayout;
-    // "+ Add › End Date" shows the end date of an event on one day
-    // until it's been changed.
+    // "Add End Date" shows the end date of an event on one day until
+    // it's been changed.
     BOOL _showsEndDate;
-    AgendaPopoverMenuRow *_repeatRow;
+    AgendaPopoverMenuRow *_addEndDateRow;
+    NSButton *_allDayCheckbox;
+    AgendaPopoverMenuRow *_repeatRow; // or "Add Repeat"
     NSStackView *_alertRows;
     NSMutableArray<AgendaPopoverMenuRow *> *_alertRowPool;
-    AgendaPopoverMenuRow *_addAlertRow; // "+ Add Alert", below the alerts
-    NSLayoutConstraint *_addAlertIconWidth;
+    AgendaPopoverMenuRow *_addAlertRow; // "Add Alert", below the alerts
     AgendaPopoverTextView *_location;
     AgendaPopoverTextView *_note;
     AgendaPopoverTextView *_URL;
@@ -937,7 +1086,11 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     NSTextField *_meetingHost;
     NSURL *_meetingURL;
     AgendaPopoverMenuRow *_calendarRow; // the calendar's dot and name
-    AgendaPopoverMenuRow *_addRow;      // "+ Add"
+    // At the bottom, ⌄ shows the parts the event doesn't have yet, each
+    // in its place to add it, and ⌃ hides them. See kShowsAllDetails.
+    AgendaPopoverMenuRow *_moreRow;
+    CGFloat _iconColumnWidth; // of the rows under All-day
+    BOOL _showsAll;
     NSScrollView *_scrollView;
     NSDataDetector *_linkDetector;
     NSRegularExpression *_hiddenLinksRegex;
@@ -1035,16 +1188,31 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
         };
         _dateLine1 = dateLine();
         _dateLine2 = dateLine();
+        _dateStrut = [AgendaPopoverStrut new];
+        _dateStrut.model = _startTimePicker;
+        [_dateStrut setContentHuggingPriority:NSLayoutPriorityRequired forOrientation:NSLayoutConstraintOrientationHorizontal];
+        [_dateLine1 addArrangedSubview:_dateStrut];
         [_dateLine1 addArrangedSubview:_startDateField];
         _dateRow = [NSStackView stackViewWithViews:@[_dateLine1, _dateLine2]];
         _dateRow.orientation = NSUserInterfaceLayoutOrientationVertical;
         _dateRow.alignment = NSLayoutAttributeLeading;
         _dateRow.spacing = 0;
 
-        // How it repeats, and its alerts.
-        _repeatRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:5];
+        // "Add End Date", under the day of an event on one day.
+        _addEndDateRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:0];
+        [_addEndDateRow.icon.widthAnchor constraintEqualToConstant:0].active = YES;
+        _addEndDateRow.label.stringValue = NSLocalizedString(@"Add End Date", @"Below the day of an event on one day in the event popover: shows the day it ends, to make it longer");
+        _addEndDateRow.canEdit = YES;
+        _addEndDateRow.clicked = ^{ [weakSelf addEndDate:nil]; };
+
+        // All-day, under the days and times.
+        _allDayCheckbox = [AgendaPopoverCheckbox checkboxWithTitle:NSLocalizedString(@"All-day", @"Checkbox below an event's day and times in the event popover") target:self action:@selector(allDayCheckboxClicked:)];
+        _allDayCheckbox.refusesFirstResponder = YES;
+
+        // How it repeats, or "Add Repeat", and its alerts.
+        _repeatRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:kDateRowIconSpacing];
         _repeatRow.icon.image = [NSImage imageWithSystemSymbolName:@"repeat" accessibilityDescription:nil];
-        _repeatRow.menuProvider = ^NSMenu *{ return [weakSelf repeatMenuForAdding:NO]; };
+        _repeatRow.menuProvider = ^NSMenu *{ return [weakSelf repeatMenuForAdding:[weakSelf currentRule] == nil]; };
         _alertRows = [NSStackView new];
         _alertRows.orientation = NSUserInterfaceLayoutOrientationVertical;
         _alertRows.alignment = NSLayoutAttributeLeading;
@@ -1057,12 +1225,22 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
         _location.placeholder = NSLocalizedString(@"Location", @"Placeholder of an event's location in the event popover, while it's empty");
         _note.placeholder = NSLocalizedString(@"Notes", @"Placeholder of an event's notes in the event popover, while they're empty");
         _URL.placeholder = NSLocalizedString(@"URL", @"Placeholder of an event's URL in the event popover, while it's empty");
+        _location.emptyText = NSLocalizedString(@"Add Location", @"In place of an event's location in the event popover while it has none: click to type one");
+        _note.emptyText = NSLocalizedString(@"Add Notes", @"In place of an event's notes in the event popover while it has none: click to type them");
+        _URL.emptyText = NSLocalizedString(@"Add URL", @"In place of an event's URL in the event popover while it has none: click to type one");
         for (AgendaPopoverTextView *textView in @[_location, _note, _URL]) {
             __weak AgendaPopoverTextView *weakTextView = textView;
             textView.beganEditing = ^{ [weakSelf beginEditingView:weakTextView]; };
             textView.endedEditing = ^(NSString *text, NSString *before) { [weakSelf textView:weakTextView endedEditing:text before:before]; };
             textView.textChanged = ^{ [weakSelf sizeChanged]; };
         }
+        // Places as a location is typed, like the new event's.
+        _suggestions = [LocationSuggestionsView new];
+        _suggestions.anchorView = _location;
+        _suggestions.floatsInPanel = YES;
+        _suggestions.onSelect = ^(NSString *name, NSString *location) { [weakSelf locationPicked:location]; };
+        _location.textChanged = ^{ [weakSelf locationChanged]; };
+        _location.handlesCommand = ^BOOL(SEL selector) { return [weakSelf handlesLocationCommand:selector]; };
 
         _btnDelete = [NSButton new];
         _btnDelete.image = [NSImage imageWithSystemSymbolName:@"delete.backward" accessibilityDescription:NSLocalizedString(@"Delete This Event", @"")];
@@ -1119,23 +1297,17 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
         _calendarRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:7];
         _calendarRow.menuProvider = ^NSMenu *{ return [weakSelf calendarMenu]; };
 
-        // Adds a part the event doesn't have yet.
-        _addRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:4];
-        _addRow.icon.image = [NSImage imageWithSystemSymbolName:@"plus" accessibilityDescription:nil];
-        _addRow.label.stringValue = NSLocalizedString(@"Add", @"Last row of the event popover: adds a part the event doesn't have yet, like a location");
-        _addRow.canEdit = YES;
-        _addRow.menuProvider = ^NSMenu *{ return [weakSelf addMenu]; };
-
-        // Adds an alert, below the alerts. Its text starts where
-        // theirs does: its icon is as wide as their bell.
-        _addAlertRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:5];
-        _addAlertRow.icon.image = [NSImage imageWithSystemSymbolName:@"plus" accessibilityDescription:nil];
+        // Adds an alert, below the alerts. It looks like one, faint.
+        _addAlertRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:kDateRowIconSpacing];
+        _addAlertRow.icon.image = [NSImage imageWithSystemSymbolName:@"bell" accessibilityDescription:nil];
         _addAlertRow.label.stringValue = NSLocalizedString(@"Add Alert", @"Row below an event's alerts in the event popover: adds an alert");
         _addAlertRow.canEdit = YES;
         _addAlertRow.menuProvider = ^NSMenu *{ return [weakSelf alertMenuForIndex:-1]; };
-        [_addAlertRow.icon setContentHuggingPriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
-        _addAlertIconWidth = [_addAlertRow.icon.widthAnchor constraintEqualToConstant:0];
-        _addAlertIconWidth.active = YES;
+
+        // ⌄ and the parts it shows, or ⌃.
+        _moreRow = [[AgendaPopoverMenuRow alloc] initWithSpacing:6];
+        _moreRow.canEdit = YES;
+        _moreRow.clicked = ^{ [weakSelf toggleShowsAll]; };
 
         NSStackView* (^stack)(NSArray<NSView *> *, NSEdgeInsets) = ^NSStackView* (NSArray<NSView *> *views, NSEdgeInsets insets) {
             NSStackView *stack = [NSStackView stackViewWithViews:views];
@@ -1146,18 +1318,16 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
             return stack;
         };
 
-        // Like Calendar, the title and time stay at the top and
-        // the other sections scroll below them.
-        _header = stack(@[[[AgendaPopoverSection alloc] initWithRows:@[titleHolder] separator:NO],
-                          [[AgendaPopoverSection alloc] initWithRows:@[_dateRow, _duration, _repeatRow, _alertRows, _addAlertRow] separator:YES]],
+        // Like Calendar, the title, location and time stay at the top
+        // and the other sections scroll below them.
+        _header = stack(@[[[AgendaPopoverSection alloc] initWithRows:@[titleHolder, _location] separator:NO],
+                          [[AgendaPopoverSection alloc] initWithRows:@[_dateRow, _duration, _addEndDateRow, _allDayCheckbox, _repeatRow, _alertRows, _addAlertRow] separator:YES]],
                         NSEdgeInsetsMake(kInset, kInset, kInset, kInset));
-        _body = stack(@[[[AgendaPopoverSection alloc] initWithRows:@[_location] separator:YES],
-                        [[AgendaPopoverSection alloc] initWithRows:@[_meetingRow] separator:YES],
+        _body = stack(@[[[AgendaPopoverSection alloc] initWithRows:@[_meetingRow] separator:YES],
                         [[AgendaPopoverSection alloc] initWithRows:@[_attendees, _lockRow] separator:YES],
                         [[AgendaPopoverSection alloc] initWithRows:@[_calendarRow] separator:YES],
-                        [[AgendaPopoverSection alloc] initWithRows:@[_note] separator:YES],
-                        [[AgendaPopoverSection alloc] initWithRows:@[_URL] separator:YES],
-                        [[AgendaPopoverSection alloc] initWithRows:@[_addRow] separator:YES]],
+                        [[AgendaPopoverSection alloc] initWithRows:@[_note, _URL] separator:YES],
+                        [[AgendaPopoverSection alloc] initWithRows:@[_moreRow] separator:YES]],
                       NSEdgeInsetsMake(0, kInset, kInset, kInset));
         _sections = [_header.arrangedSubviews arrayByAddingObjectsFromArray:_body.arrangedSubviews];
 
@@ -1199,6 +1369,7 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 {
     [super viewDidDisappear];
     [self closeCalendar];
+    _suggestions.query = nil;
     if (_clickMonitor) {
         [NSEvent removeMonitor:_clickMonitor];
         _clickMonitor = nil;
@@ -1284,7 +1455,7 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     for (AgendaPopoverSection *section in _body.arrangedSubviews) {
         [section setRowWidth:width];
     }
-    for (AgendaPopoverTextView *textView in @[_location, _note, _URL]) {
+    for (AgendaPopoverTextView *textView in @[_note, _URL]) {
         [textView setWrapWidth:width];
     }
 }
@@ -1302,10 +1473,12 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     // Rows that go together are closer.
     CGFloat closeSpacing = MAX(2, round(spacing / 2));
     AgendaPopoverSection *whenSection = (AgendaPopoverSection *)_dateRow.superview;
-    for (NSView *row in @[_dateRow, _duration, _repeatRow, _alertRows]) {
+    for (NSView *row in @[_dateRow, _duration, _addEndDateRow, _allDayCheckbox, _repeatRow, _alertRows]) {
         [whenSection setCustomSpacing:closeSpacing afterView:row];
     }
+    [(AgendaPopoverSection *)_location.superview setCustomSpacing:closeSpacing afterView:_title.superview];
     [(AgendaPopoverSection *)_attendees.superview setCustomSpacing:closeSpacing afterView:_attendees];
+    [(AgendaPopoverSection *)_note.superview setCustomSpacing:closeSpacing afterView:_note];
     _alertRows.spacing = closeSpacing;
 
     CGFloat fontSize = SizePref.fontSize;
@@ -1318,15 +1491,25 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     // Every time is as wide, so the gaps around them don't change.
     _startTimePicker.font = [NSFont monospacedDigitSystemFontOfSize:fontSize weight:NSFontWeightRegular];
     _endTimePicker.font = _startTimePicker.font;
+    [_dateStrut invalidateIntrinsicContentSize];
     _meetingHost.font = font;
-    for (AgendaPopoverMenuRow *row in [_alertRowPool arrayByAddingObjectsFromArray:@[_repeatRow, _calendarRow]]) {
+    // A box about as big as the icons beside the other rows, smaller
+    // than a checkbox's usual one for this size of text.
+    _allDayCheckbox.controlSize = fontSize <= FONT_SIZE_SMALL ? NSControlSizeMini : NSControlSizeSmall;
+    _allDayCheckbox.font = font;
+    for (AgendaPopoverMenuRow *row in [_alertRowPool arrayByAddingObjectsFromArray:@[_repeatRow, _calendarRow, _addAlertRow, _addEndDateRow]]) {
         [row setTextFont:font iconSize:fontSize - 1];
     }
+    // The icons of the rows below All-day are under its box, and their
+    // text is in line with its title.
+    NSSize checkboxSize = _allDayCheckbox.cell.cellSize;
+    NSRect checkboxTitle = [_allDayCheckbox.cell titleRectForBounds:NSMakeRect(0, 0, checkboxSize.width, checkboxSize.height)];
+    _iconColumnWidth = MAX(0, NSMinX(checkboxTitle) - kDateRowIconSpacing);
+    for (AgendaPopoverMenuRow *row in [_alertRowPool arrayByAddingObjectsFromArray:@[_repeatRow, _addAlertRow]]) {
+        [row setIconColumnWidth:_iconColumnWidth];
+    }
     [_lockRow setTextFont:[NSFont systemFontOfSize:fontSize - 2] iconSize:fontSize - 3];
-    [_addRow setTextFont:[NSFont systemFontOfSize:fontSize - 1] iconSize:fontSize - 4];
-    [_addAlertRow setTextFont:[NSFont systemFontOfSize:fontSize - 1] iconSize:fontSize - 4];
-    NSImageSymbolConfiguration *bellSize = [NSImageSymbolConfiguration configurationWithPointSize:fontSize - 1 weight:NSFontWeightRegular];
-    _addAlertIconWidth.constant = [[NSImage imageWithSystemSymbolName:@"bell" accessibilityDescription:nil] imageWithSymbolConfiguration:bellSize].size.width;
+    [_moreRow setTextFont:[NSFont systemFontOfSize:fontSize - 1] iconSize:fontSize - 4];
     // The size of the text, and the meeting icon's weight.
     NSImageSymbolConfiguration *iconSize = [NSImageSymbolConfiguration configurationWithPointSize:fontSize weight:NSFontWeightMedium];
     _btnDelete.symbolConfiguration = iconSize;
@@ -1352,6 +1535,7 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     _editable = _event != nil && _event.calendar.allowsContentModifications && !_event.hasAttendees;
     [_changes removeAllObjects];
     _showsEndDate = NO;
+    _showsAll = [NSUserDefaults.standardUserDefaults boolForKey:kShowsAllDetails];
 
     [self updateSizes];
 
@@ -1500,10 +1684,28 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     }
     _duration.textColor = textColor;
 
-    // How it repeats
+    // The parts it doesn't have yet. Each shows in its place while ⌄
+    // is open, faint, to add it; ⌄ lists them while it's closed.
+    NSAttributedString *notes = [self currentNotesText];
+    NSURL *URL = [self currentURL];
     EKRecurrenceRule *rule = [self currentRule];
-    _repeatRow.hidden = rule == nil;
-    _repeatRow.label.stringValue = rule ? RepeatText(rule) : @"";
+    BOOL canAddEndDate = _editable && [NSCalendar.currentCalendar isDate:start inSameDayAsDate:end] && !_showsEndDate;
+    BOOL canAddRepeat = _editable && rule == nil;
+    BOOL canAddNotes = _editable && notes == nil;
+    BOOL canAddURL = _editable && URL == nil;
+    NSMutableArray<NSString *> *missing = [NSMutableArray new];
+    if (canAddEndDate) [missing addObject:NSLocalizedString(@"End Date", @"Listed after ⌄ at the bottom of the event popover: a part the event doesn't have yet")];
+    if (canAddRepeat) [missing addObject:NSLocalizedString(@"Repeat", @"Listed after ⌄ at the bottom of the event popover: a part the event doesn't have yet")];
+    if (canAddNotes) [missing addObject:NSLocalizedString(@"Notes", @"Listed after ⌄ at the bottom of the event popover: a part the event doesn't have yet")];
+    if (canAddURL) [missing addObject:NSLocalizedString(@"URL", @"Listed after ⌄ at the bottom of the event popover: a part the event doesn't have yet")];
+
+    _addEndDateRow.hidden = !(_showsAll && canAddEndDate);
+    _allDayCheckbox.hidden = !_editable;
+    _allDayCheckbox.state = allDay ? NSControlStateValueOn : NSControlStateValueOff;
+
+    // How it repeats
+    _repeatRow.hidden = rule == nil && !(_showsAll && canAddRepeat);
+    _repeatRow.label.stringValue = rule ? RepeatText(rule) : NSLocalizedString(@"Add Repeat", @"In place of how an event repeats in the event popover while it doesn't: click to choose how");
     _repeatRow.canEdit = _editable;
 
     // Alerts, a row each. Only events' alerts show.
@@ -1520,12 +1722,11 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     _alertRows.hidden = alarms.count == 0;
     _addAlertRow.hidden = !(_editable && [self alertMenuForIndex:-1].numberOfItems > 0);
 
-    // Location, notes and URL
+    // Location, notes and URL. "Add Location" always shows.
     NSString *location = [self currentLocation];
-    [self renderTextView:_location text:location ? [self textWithString:location isHTML:NO] : nil];
-    [self renderTextView:_note text:[self currentNotesText]];
-    NSURL *URL = [self currentURL];
-    [self renderTextView:_URL text:URL ? [self textWithString:URL.absoluteString isHTML:NO] : nil];
+    [self renderTextView:_location text:location ? [self textWithString:location isHTML:NO] : nil showsEmpty:_editable];
+    [self renderTextView:_note text:notes showsEmpty:_showsAll && canAddNotes];
+    [self renderTextView:_URL text:URL ? [self textWithString:URL.absoluteString isHTML:NO] : nil showsEmpty:_showsAll && canAddURL];
 
     // Calendar
     EKCalendar *calendar = [self currentCalendar];
@@ -1538,7 +1739,15 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     _meetingRow.hidden = _info.meetingURL == nil;
     _attendees.hidden = !_event.hasAttendees;
     _lockRow.hidden = !(_event.hasAttendees && _event.calendar.allowsContentModifications);
-    _addRow.hidden = !_editable;
+
+    // ⌄ and what it shows, or ⌃ to hide them.
+    NSString *missingList = [missing componentsJoinedByString:@", "];
+    _moreRow.hidden = missing.count == 0;
+    _moreRow.icon.image = [NSImage imageWithSystemSymbolName:_showsAll ? @"chevron.up" : @"chevron.down" accessibilityDescription:nil];
+    _moreRow.label.stringValue = _showsAll ? @"" : missingList;
+    _moreRow.accessibilityLabel = _showsAll
+        ? NSLocalizedString(@"Hide Empty Details", @"Accessibility label of ⌃ at the bottom of the event popover: hides the parts the event doesn't have")
+        : [NSString stringWithFormat:NSLocalizedString(@"Show %@", @"Accessibility label of ⌄ at the bottom of the event popover, e.g. Show Repeat, Notes, URL"), missingList];
 
     for (AgendaPopoverMenuRow *row in [_alertRowPool arrayByAddingObjectsFromArray:@[_repeatRow, _calendarRow]]) {
         row.label.textColor = textColor;
@@ -1546,10 +1755,16 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     }
     _lockRow.label.textColor = NSColor.secondaryLabelColor;
     _lockRow.icon.contentTintColor = NSColor.secondaryLabelColor;
-    for (AgendaPopoverMenuRow *row in @[_addRow, _addAlertRow]) {
+    // "Add …" looks like the part it adds, faint.
+    NSMutableArray<AgendaPopoverMenuRow *> *faintRows = [@[_addAlertRow, _addEndDateRow, _moreRow] mutableCopy];
+    if (rule == nil) [faintRows addObject:_repeatRow];
+    for (AgendaPopoverMenuRow *row in faintRows) {
         row.label.textColor = NSColor.tertiaryLabelColor;
         row.icon.contentTintColor = NSColor.tertiaryLabelColor;
     }
+    _allDayCheckbox.attributedTitle = [[NSAttributedString alloc] initWithString:_allDayCheckbox.title attributes:@{
+        NSFontAttributeName: _allDayCheckbox.font,
+        NSForegroundColorAttributeName: textColor}];
 
     // Hide delete button IF event doesn't allow modification.
     _btnDelete.hidden = !item || !_event.calendar.allowsContentModifications;
@@ -1570,11 +1785,12 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     _header.edgeInsets = NSEdgeInsetsMake(kInset, kInset, _scrollView.hidden ? kInset : SizePref.agendaPopoverSectionSpacing, kInset);
 }
 
-- (void)renderTextView:(AgendaPopoverTextView *)textView text:(NSAttributedString *)text
+// With no text, it shows its "Add …" if showsEmpty, else it's hidden.
+- (void)renderTextView:(AgendaPopoverTextView *)textView text:(NSAttributedString *)text showsEmpty:(BOOL)showsEmpty
 {
     textView.canEdit = _editable;
     if (_editingView == textView) return;
-    textView.hidden = text == nil;
+    textView.hidden = text == nil && !showsEmpty;
     [textView setAttributedText:text ?: [NSAttributedString new]];
 }
 
@@ -1603,6 +1819,8 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
                 line1 = @[_startDateField, _dateDash, _endDateField];
                 break;
         }
+        // As tall with times as without.
+        line1 = [@[_dateStrut] arrayByAddingObjectsFromArray:line1];
         _dateDash.stringValue = layout == 1 ? @" –" : @" – ";
         [self arrangeViews:line1 inLine:_dateLine1];
         [self arrangeViews:line2 inLine:_dateLine2];
@@ -1666,10 +1884,11 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 {
     __weak AgendaPopoverVC *weakSelf = self;
     NSInteger index = _alertRowPool.count;
-    AgendaPopoverMenuRow *row = [[AgendaPopoverMenuRow alloc] initWithSpacing:5];
+    AgendaPopoverMenuRow *row = [[AgendaPopoverMenuRow alloc] initWithSpacing:kDateRowIconSpacing];
     row.icon.image = [NSImage imageWithSystemSymbolName:@"bell" accessibilityDescription:nil];
     row.menuProvider = ^NSMenu *{ return [weakSelf alertMenuForIndex:index]; };
     [row setTextFont:[NSFont systemFontOfSize:SizePref.fontSize] iconSize:SizePref.fontSize - 1];
+    if (_iconColumnWidth > 0) [row setIconColumnWidth:_iconColumnWidth];
     [_alertRows addArrangedSubview:row];
     [row.widthAnchor constraintEqualToAnchor:_alertRows.widthAnchor].active = YES;
     [_alertRowPool addObject:row];
@@ -1965,14 +2184,9 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
         __weak AgendaPopoverVC *weakSelf = self;
         _dayPicker = [DayPicker new];
         _dayPicker.dayPicked = ^(NSDate *day) { [weakSelf dayPicked:day]; };
-        _dayPicker.allDayClicked = ^(BOOL allDay) { [weakSelf allDayClicked:allDay]; };
     }
     _calendarField = field;
-    BOOL isStart = field == _startDateField;
-    _dayPicker.date = isStart ? [self currentStart] : [self currentEnd];
-    // All-day is for the whole event, so only below its start.
-    _dayPicker.showsAllDay = isStart;
-    _dayPicker.allDay = [self currentAllDay];
+    _dayPicker.date = field == _startDateField ? [self currentStart] : [self currentEnd];
     [_dayPicker showBelowView:field];
 }
 
@@ -1998,15 +2212,10 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     [self endEditing];
 }
 
-- (void)allDayClicked:(BOOL)allDay
+- (void)allDayCheckboxClicked:(NSButton *)checkbox
 {
-    [self setAllDay:allDay];
-    _dateFieldText = DayString([self currentStart]);
-    if (_editingView == _startDateField) {
-        _startDateField.currentEditor.string = _dateFieldText;
-        [_startDateField.currentEditor selectAll:nil];
-    }
-    _dayPicker.date = [self currentStart];
+    [self endEditing];
+    [self setAllDay:checkbox.state == NSControlStateValueOn];
     [self renderAndResize];
 }
 
@@ -2061,9 +2270,39 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
 
 #pragma mark Location, notes and URL
 
+- (void)locationChanged
+{
+    [self sizeChanged];
+    if (_editingView == _location) _suggestions.query = _location.string;
+}
+
+// Arrow keys, Return and Esc work the place suggestions while they
+// show. Return without a place highlighted keeps what's typed.
+- (BOOL)handlesLocationCommand:(SEL)selector
+{
+    if (!_suggestions.hasSuggestions) return NO;
+    if (selector == @selector(moveDown:)) return [_suggestions moveHighlightBy:1];
+    if (selector == @selector(moveUp:)) return [_suggestions moveHighlightBy:-1];
+    if (selector == @selector(insertNewline:)) return [_suggestions acceptHighlighted];
+    if (selector == @selector(cancelOperation:) || selector == @selector(complete:)) {
+        [_suggestions dismiss];
+        return YES;
+    }
+    return NO;
+}
+
+// A place was picked: its name and address, and done.
+- (void)locationPicked:(NSString *)location
+{
+    if (_editingView != _location) return;
+    _location.string = location;
+    [self endEditing];
+}
+
 - (void)textView:(AgendaPopoverTextView *)textView endedEditing:(NSString *)text before:(NSString *)before
 {
     if (textView == nil) return;
+    if (textView == _location) _suggestions.query = nil;
     [self endEditingView:textView];
     if (![text isEqualToString:before]) {
         if (textView == _location) {
@@ -2092,19 +2331,6 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     [self renderAndResize];
 }
 
-// Show a text part the event doesn't have yet, empty, to type in.
-- (void)addTextPart:(AgendaPopoverTextView *)textView
-{
-    [self endEditing];
-    textView.hidden = NO;
-    [textView setAttributedText:[NSAttributedString new]];
-    [self updateSectionsHidden];
-    [self sizeChanged];
-    [self.view layoutSubtreeIfNeeded];
-    [textView beginEditingAtIndex:0];
-    [textView scrollRectToVisible:textView.bounds];
-}
-
 // Show the end date of an event on one day, with its calendar, to
 // type or pick the day it ends.
 - (void)addEndDate:(id)sender
@@ -2116,9 +2342,15 @@ static void ApplyChanges(EKEvent *event, NSDictionary<NSString *, id> *changes)
     [self.view.window makeFirstResponder:_endDateField];
 }
 
-- (void)addLocation:(id)sender { [self addTextPart:_location]; }
-- (void)addNotes:(id)sender { [self addTextPart:_note]; }
-- (void)addURL:(id)sender { [self addTextPart:_URL]; }
+// ⌄ or ⌃: show or hide the parts the event doesn't have yet. It stays
+// that way for the next event.
+- (void)toggleShowsAll
+{
+    [self endEditing];
+    _showsAll = !_showsAll;
+    [NSUserDefaults.standardUserDefaults setBool:_showsAll forKey:kShowsAllDetails];
+    [self renderAndResize];
+}
 
 #pragma mark Menus
 
@@ -2261,32 +2493,6 @@ static NSMenuItem *MenuItem(NSString *title, id target, SEL action, id represent
     if (item.state == NSControlStateValueOn) return;
     [self stage:kChangeCalendar value:item.representedObject original:_event.calendar];
     [self renderAndResize];
-}
-
-// "+ Add": the parts the event doesn't have yet.
-- (NSMenu *)addMenu
-{
-    NSMenu *menu = [NSMenu new];
-    // An event on one day only shows the day it starts.
-    if ([NSCalendar.currentCalendar isDate:[self currentStart] inSameDayAsDate:[self currentEnd]]) {
-        [menu addItem:MenuItem(NSLocalizedString(@"End Date", @"+ Add menu in the event popover: the day an event on one day ends, to make it longer"), self, @selector(addEndDate:), nil)];
-    }
-    if ([self currentRule] == nil) {
-        NSMenuItem *repeat = MenuItem(NSLocalizedString(@"Repeat", @"+ Add menu in the event popover: how the event repeats"), nil, nil, nil);
-        repeat.submenu = [self repeatMenuForAdding:YES];
-        [menu addItem:repeat];
-    }
-    // Alerts are added with "+ Add Alert", below them.
-    if (_location.hidden) {
-        [menu addItem:MenuItem(NSLocalizedString(@"Location", @"+ Add menu in the event popover"), self, @selector(addLocation:), nil)];
-    }
-    if (_note.hidden) {
-        [menu addItem:MenuItem(NSLocalizedString(@"Notes", @"+ Add menu in the event popover"), self, @selector(addNotes:), nil)];
-    }
-    if (_URL.hidden) {
-        [menu addItem:MenuItem(NSLocalizedString(@"URL", @"+ Add menu in the event popover"), self, @selector(addURL:), nil)];
-    }
-    return menu;
 }
 
 #pragma mark -

@@ -21,7 +21,7 @@ static const CGFloat kShadowMargin = 6;
 // medium size: rows of 20 points and columns of 25.
 typedef struct {
     CGFloat pad, headerHeight, dowHeight, rowHeight, columnWidth;
-    CGFloat buttonWidth, buttonImageSize, checkboxHeight, checkboxSize;
+    CGFloat buttonWidth, buttonImageSize;
 } DayPickerMetrics;
 
 static DayPickerMetrics Metrics(void)
@@ -35,8 +35,6 @@ static DayPickerMetrics Metrics(void)
     m.columnWidth = round(fontSize * 1.9);
     m.buttonWidth = round(fontSize * 1.4);
     m.buttonImageSize = fontSize + 3;
-    m.checkboxHeight = round(fontSize * 1.4);
-    m.checkboxSize = fontSize + 1;
     return m;
 }
 
@@ -49,15 +47,6 @@ static NSImage *TintedImage(NSImage *image, NSColor *color)
         [color set];
         NSRectFillUsingOperation(rect, NSCompositingOperationSourceAtop);
         return YES;
-    }];
-}
-
-// A color for the light and the dark appearance.
-static NSColor *LightDark(NSColor *light, NSColor *dark)
-{
-    return [NSColor colorWithName:nil dynamicProvider:^NSColor *(NSAppearance *appearance) {
-        BOOL isDark = [appearance bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]] == NSAppearanceNameDarkAqua;
-        return isDark ? dark : light;
     }];
 }
 
@@ -106,29 +95,21 @@ typedef NS_ENUM(NSInteger, DayPickerButton) {
     DayPickerButtonNext,
 };
 
-// What a click is on: a button (DayPickerButton), a day (kTargetDay
-// plus its cell) or All-day.
+// What a click is on: a button (DayPickerButton) or a day (kTargetDay
+// plus its cell).
 static const NSInteger kTargetNone = -1;
 static const NSInteger kTargetDay = 100;
-static const NSInteger kTargetAllDay = 200;
 
 // The month's name and year with the main calendar's buttons, the
-// days of the week, six weeks of days and, for an event's start, an
-// All-day checkbox. The picked day is in a circle and today is in the
-// color the main calendar shows it in. It's drawn on a card with
-// rounded corners; the window is clear.
-//
-// The checkbox is drawn here too: a button's checkbox looks disabled
-// in a window that isn't key, and this window never is.
+// days of the week and six weeks of days. The picked day is in a
+// circle and today is in the color the main calendar shows it in. It's
+// drawn on a card with rounded corners; the window is clear.
 @interface DayPickerView : NSView
 @property (nonatomic) NSCalendar *calendar;
 @property (nonatomic) NSDateFormatter *monthFormatter;
 @property (nonatomic) NSDate *date;  // the picked day
 @property (nonatomic) NSDate *month; // the first day of the month shown
-@property (nonatomic) BOOL showsAllDay;
-@property (nonatomic) BOOL allDay;
 @property (nonatomic, copy) void (^dayPicked)(NSDate *day);
-@property (nonatomic, copy) void (^allDayClicked)(BOOL allDay);
 - (NSSize)size;
 @end
 
@@ -166,35 +147,10 @@ static const NSInteger kTargetAllDay = 200;
     return Metrics().columnWidth * 7;
 }
 
-- (CGFloat)separatorTop
-{
-    return [self gridTop] + Metrics().rowHeight * 6 + 6;
-}
-
 - (NSSize)size
 {
     DayPickerMetrics m = Metrics();
-    CGFloat bottom = _showsAllDay ? [self separatorTop] + 1 + 6 + m.checkboxHeight : [self gridTop] + m.rowHeight * 6;
-    return NSMakeSize([self gridWidth] + m.pad * 2, bottom + m.pad);
-}
-
-- (NSDictionary *)allDayAttributes
-{
-    return @{NSFontAttributeName: [NSFont systemFontOfSize:SizePref.fontSize],
-             NSForegroundColorAttributeName: NSColor.labelColor};
-}
-
-- (NSString *)allDayTitle
-{
-    return NSLocalizedString(@"All-day", @"Checkbox below the calendar in the event popover");
-}
-
-// The checkbox and its title, which can both be clicked.
-- (NSRect)rectForAllDay
-{
-    DayPickerMetrics m = Metrics();
-    CGFloat width = m.checkboxSize + 6 + ceil([[self allDayTitle] sizeWithAttributes:[self allDayAttributes]].width);
-    return NSMakeRect(m.pad + 3, [self separatorTop] + 1 + 6, width, m.checkboxHeight);
+    return NSMakeSize([self gridWidth] + m.pad * 2, [self gridTop] + m.rowHeight * 6 + m.pad);
 }
 
 - (NSRect)rectForButton:(DayPickerButton)button
@@ -217,7 +173,6 @@ static const NSInteger kTargetAllDay = 200;
     }
     NSInteger cell = [self cellAtPoint:point];
     if (cell >= 0) return kTargetDay + cell;
-    if (_showsAllDay && NSPointInRect(point, [self rectForAllDay])) return kTargetAllDay;
     return kTargetNone;
 }
 
@@ -318,54 +273,6 @@ static const NSInteger kTargetAllDay = 200;
         DrawCentered(number, rect, @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:fontSize - 2 weight:weight],
                                      NSForegroundColorAttributeName: color});
     }
-
-    // All-day, below a line.
-    if (_showsAllDay) {
-        [Theme.agendaDividerColor set];
-        NSRectFillUsingOperation(NSMakeRect(m.pad, [self separatorTop], [self gridWidth], 1), NSCompositingOperationSourceOver);
-        [self drawAllDay];
-    }
-}
-
-// A checkbox like the system's: a white box, or a blue one with a
-// white tick.
-- (void)drawAllDay
-{
-    DayPickerMetrics m = Metrics();
-    NSRect rect = [self rectForAllDay];
-    CGFloat size = m.checkboxSize;
-    NSRect box = NSMakeRect(NSMinX(rect), NSMinY(rect) + round((NSHeight(rect) - size) / 2), size, size);
-    CGFloat radius = round(size * 0.28);
-    NSBezierPath *path = [NSBezierPath bezierPathWithRoundedRect:box xRadius:radius yRadius:radius];
-    if (_allDay) {
-        [Theme.todayCellColor setFill];
-        [path fill];
-        NSBezierPath *tick = [NSBezierPath bezierPath];
-        [tick moveToPoint:NSMakePoint(NSMinX(box) + size * 0.25, NSMinY(box) + size * 0.52)];
-        [tick lineToPoint:NSMakePoint(NSMinX(box) + size * 0.43, NSMinY(box) + size * 0.70)];
-        [tick lineToPoint:NSMakePoint(NSMinX(box) + size * 0.75, NSMinY(box) + size * 0.30)];
-        tick.lineWidth = MAX(1.5, round(size * 0.13 * 2) / 2);
-        tick.lineCapStyle = NSLineCapStyleRound;
-        tick.lineJoinStyle = NSLineJoinStyleRound;
-        [NSColor.whiteColor setStroke];
-        [tick stroke];
-    }
-    else {
-        [LightDark(NSColor.whiteColor, [NSColor colorWithWhite:1 alpha:0.1]) setFill];
-        [path fill];
-        NSBezierPath *border = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(box, 0.5, 0.5) xRadius:radius - 0.5 yRadius:radius - 0.5];
-        border.lineWidth = 1;
-        [LightDark([NSColor colorWithWhite:0 alpha:0.25], [NSColor colorWithWhite:1 alpha:0.25]) setStroke];
-        [border stroke];
-    }
-    if (_pressedTarget == kTargetAllDay) {
-        [[NSColor.labelColor colorWithAlphaComponent:0.15] setFill];
-        [path fill];
-    }
-    NSDictionary *attributes = [self allDayAttributes];
-    NSString *title = [self allDayTitle];
-    NSSize titleSize = [title sizeWithAttributes:attributes];
-    [title drawAtPoint:NSMakePoint(NSMaxX(box) + 6, NSMinY(rect) + round((NSHeight(rect) - titleSize.height) / 2)) withAttributes:attributes];
 }
 
 #pragma mark Mouse
@@ -411,22 +318,12 @@ static const NSInteger kTargetAllDay = 200;
     _pressedTarget = kTargetNone;
     self.needsDisplay = YES;
     if (!inside) return;
-    if (target == kTargetAllDay) {
-        [self toggleAllDay];
-    }
-    else if (target >= kTargetDay) {
+    if (target >= kTargetDay) {
         [self pickDay:[self dayForCell:target - kTargetDay]];
     }
     else {
         [self clickButton:target];
     }
-}
-
-- (void)toggleAllDay
-{
-    self.allDay = !_allDay;
-    self.needsDisplay = YES;
-    if (self.allDayClicked) self.allDayClicked(_allDay);
 }
 
 - (void)clickButton:(DayPickerButton)button
@@ -494,16 +391,6 @@ static const NSInteger kTargetAllDay = 200;
         element.press = ^{ [weakSelf pickDay:day]; };
         [children addObject:element];
     }
-    if (_showsAllDay) {
-        DayPickerAXElement *element = [DayPickerAXElement new];
-        element.accessibilityRole = NSAccessibilityCheckBoxRole;
-        element.accessibilityLabel = [self allDayTitle];
-        element.accessibilityValue = @(_allDay);
-        element.accessibilityParent = self;
-        element.accessibilityFrameInParentSpace = [self rectForAllDay];
-        element.press = ^{ [weakSelf toggleAllDay]; };
-        [children addObject:element];
-    }
     return children;
 }
 
@@ -527,12 +414,6 @@ static const NSInteger kTargetAllDay = 200;
     _view.dayPicked = ^(NSDate *day) {
         DayPicker *strongSelf = weakSelf;
         if (strongSelf.dayPicked) strongSelf.dayPicked(day);
-    };
-    _view.allDayClicked = ^(BOOL allDay) {
-        DayPicker *strongSelf = weakSelf;
-        if (strongSelf == nil) return;
-        strongSelf->_allDay = allDay;
-        if (strongSelf.allDayClicked) strongSelf.allDayClicked(allDay);
     };
 
     // The same faint shadow as the place suggestions, not a window's.
@@ -572,21 +453,6 @@ static const NSInteger kTargetAllDay = 200;
     _view.needsDisplay = YES;
 }
 
-- (void)setShowsAllDay:(BOOL)showsAllDay
-{
-    _showsAllDay = showsAllDay;
-    if (_view.showsAllDay == showsAllDay) return;
-    _view.showsAllDay = showsAllDay;
-    if (self.isShown && _anchor) [self showBelowView:_anchor];
-}
-
-- (void)setAllDay:(BOOL)allDay
-{
-    _allDay = allDay;
-    _view.allDay = allDay;
-    _view.needsDisplay = YES;
-}
-
 - (BOOL)isShown
 {
     return _panel.isVisible;
@@ -609,8 +475,6 @@ static const NSInteger kTargetAllDay = 200;
     [monthFormatter setLocalizedDateFormatFromTemplate:@"MMMMy"];
     _view.calendar = calendar;
     _view.monthFormatter = monthFormatter;
-    _view.showsAllDay = _showsAllDay;
-    _view.allDay = _allDay;
     if (!self.isShown) self.date = _date ?: [NSDate date];
     _panel.appearance = view.effectiveAppearance;
 

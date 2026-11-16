@@ -14,6 +14,11 @@
 // The field the pane appears under.
 @property (nonatomic, weak) NSView *anchorView;
 
+// Show the pane in a window of its own, so it can reach past the
+// edges of the anchor's window (a popover's). It's as wide as the
+// anchor, below it or, if the screen ends there, above it.
+@property (nonatomic) BOOL floatsInPanel;
+
 // What the user has typed so far. nil or empty hides the pane.
 @property (nonatomic, copy) NSString *query;
 

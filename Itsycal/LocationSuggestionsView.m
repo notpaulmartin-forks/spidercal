@@ -11,6 +11,20 @@
 static const NSInteger kMaxSuggestions = 4;
 static const CGFloat kWindowInset = 8;    // from the window's sides
 static const CGFloat kGapBelowAnchor = 3;
+static const CGFloat kPanelOutset = 4;    // past the anchor's sides, in a panel
+static const CGFloat kShadowMargin = 6;   // around the pane in a panel, for its shadow
+
+#pragma mark -
+#pragma mark SuggestionsPanel
+
+// Never becomes key or main, so typing goes on in the anchor's window.
+@interface SuggestionsPanel : NSPanel
+@end
+
+@implementation SuggestionsPanel
+- (BOOL)canBecomeKeyWindow { return NO; }
+- (BOOL)canBecomeMainWindow { return NO; }
+@end
 
 #pragma mark -
 #pragma mark SuggestionRow
@@ -121,6 +135,9 @@ static const CGFloat kGapBelowAnchor = 3;
     NSArray<MKLocalSearchCompletion *> *_results;
     NSInteger _highlightedIndex; // -1 = none
     NSString *_dismissedQuery;
+    SuggestionsPanel *_panel;    // if floatsInPanel
+    NSLayoutConstraint *_panelWidth;
+    __weak NSWindow *_observedWindow;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect
@@ -163,6 +180,7 @@ static const CGFloat kGapBelowAnchor = 3;
 - (void)dealloc
 {
     [self removeClickMonitor];
+    [self closePanel];
 }
 
 - (void)updateLayer
@@ -176,6 +194,7 @@ static const CGFloat kGapBelowAnchor = 3;
 // there is something to show, as the anchor needs to be in a window.
 - (void)attachToWindow
 {
+    if (self.floatsInPanel) return; // see -showPanel
     NSView *anchor = self.anchorView;
     NSView *container = anchor.window.contentView;
     if (!container) return;
@@ -200,6 +219,10 @@ static const CGFloat kGapBelowAnchor = 3;
         if (pane && event.window == pane.window) {
             NSPoint point = [pane convertPoint:event.locationInWindow fromView:nil];
             if (!NSPointInRect(point, pane.bounds)) [pane dismiss];
+        }
+        // In the anchor's window, when the pane has its own.
+        else if (pane && event.window == pane.anchorView.window) {
+            [pane dismiss];
         }
         return event;
     }];
@@ -278,6 +301,111 @@ static const CGFloat kGapBelowAnchor = 3;
         [self removeClickMonitor];
     }
     self.hidden = results.count == 0;
+    if (self.floatsInPanel) {
+        if (results.count > 0) [self showPanel];
+        else [self closePanel];
+    }
+}
+
+#pragma mark Panel
+
+- (void)showPanel
+{
+    NSWindow *parent = self.anchorView.window;
+    if (parent == nil) return;
+    if (_panel == nil) {
+        _panel = [[SuggestionsPanel alloc] initWithContentRect:NSZeroRect styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel backing:NSBackingStoreBuffered defer:YES];
+        _panel.opaque = NO;
+        _panel.backgroundColor = NSColor.clearColor;
+        _panel.hasShadow = NO; // the pane's own, fainter
+        _panel.releasedWhenClosed = NO;
+        _panel.becomesKeyOnlyIfNeeded = YES;
+        _panel.hidesOnDeactivate = YES;
+        _panel.animationBehavior = NSWindowAnimationBehaviorNone;
+        NSView *container = [NSView new];
+        container.wantsLayer = YES;
+        _panel.contentView = container;
+    }
+    NSView *container = _panel.contentView;
+    if (self.superview != container) {
+        [self removeFromSuperview];
+        [container addSubview:self];
+        _panelWidth = [self.widthAnchor constraintEqualToConstant:0];
+        [NSLayoutConstraint activateConstraints:@[
+            [self.topAnchor constraintEqualToAnchor:container.topAnchor constant:kShadowMargin],
+            [self.leadingAnchor constraintEqualToAnchor:container.leadingAnchor constant:kShadowMargin],
+            _panelWidth,
+        ]];
+    }
+    _panel.appearance = self.anchorView.effectiveAppearance;
+    [self placePanel];
+    if (_panel.parentWindow != parent) {
+        [_panel.parentWindow removeChildWindow:_panel];
+        [parent addChildWindow:_panel ordered:NSWindowAbove];
+    }
+    [self observeWindow:parent];
+    [_panel orderFront:nil];
+}
+
+// Below the anchor, a little wider, or above it if there's no room
+// below. If neither has room, on the side with more, kept on the
+// screen.
+- (void)placePanel
+{
+    NSView *anchor = self.anchorView;
+    NSWindow *parent = anchor.window;
+    if (parent == nil || _panel == nil) return;
+    NSRect anchorRect = [parent convertRectToScreen:[anchor convertRect:anchor.bounds toView:nil]];
+    CGFloat width = NSWidth(anchorRect) + 2 * kPanelOutset;
+    _panelWidth.constant = width;
+    NSSize size = NSMakeSize(width, self.fittingSize.height);
+    NSRect visible = (parent.screen ?: NSScreen.mainScreen).visibleFrame;
+    CGFloat below = NSMinY(anchorRect) - kGapBelowAnchor - size.height;
+    CGFloat above = NSMaxY(anchorRect) + kGapBelowAnchor;
+    CGFloat y = below;
+    if (below < NSMinY(visible)) {
+        if (above + size.height <= NSMaxY(visible) || NSMaxY(visible) - NSMaxY(anchorRect) > NSMinY(anchorRect) - NSMinY(visible)) {
+            y = above;
+        }
+        y = MAX(NSMinY(visible), MIN(y, NSMaxY(visible) - size.height));
+    }
+    CGFloat x = MAX(NSMinX(visible), MIN(NSMinX(anchorRect) - kPanelOutset, NSMaxX(visible) - size.width));
+    NSRect frame = NSInsetRect(NSMakeRect(x, y, size.width, size.height), -kShadowMargin, -kShadowMargin);
+    if (!NSEqualRects(frame, _panel.frame)) [_panel setFrame:frame display:YES];
+}
+
+// The anchor's window moves (a popover, with its event as the agenda
+// scrolls) or changes size, and the panel follows.
+- (void)observeWindow:(NSWindow *)window
+{
+    if (_observedWindow == window) return;
+    [self stopObservingWindow];
+    _observedWindow = window;
+    NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+    [center addObserver:self selector:@selector(windowMoved:) name:NSWindowDidMoveNotification object:window];
+    [center addObserver:self selector:@selector(windowMoved:) name:NSWindowDidResizeNotification object:window];
+}
+
+- (void)stopObservingWindow
+{
+    if (_observedWindow == nil) return;
+    NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+    [center removeObserver:self name:NSWindowDidMoveNotification object:_observedWindow];
+    [center removeObserver:self name:NSWindowDidResizeNotification object:_observedWindow];
+    _observedWindow = nil;
+}
+
+- (void)windowMoved:(NSNotification *)notification
+{
+    if (_panel.isVisible) [self placePanel];
+}
+
+- (void)closePanel
+{
+    [self stopObservingWindow];
+    if (_panel == nil) return;
+    [_panel.parentWindow removeChildWindow:_panel];
+    [_panel orderOut:nil];
 }
 
 - (void)selectIndex:(NSInteger)index
